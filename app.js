@@ -1,0 +1,744 @@
+(() => {
+  "use strict";
+
+  const CATS = window.CATEGORIES;
+  const EVENTS = window.EVENTS;
+  const VENUES = window.VENUES;
+  const byId = Object.fromEntries(VENUES.map((v) => [v.id, v]));
+  const $ = (s, r = document) => r.querySelector(s);
+  const isMobile = () => matchMedia("(max-width: 860px)").matches;
+
+  const STYLES = {
+    light: "https://tiles.openfreemap.org/styles/positron",
+    dark: "https://tiles.openfreemap.org/styles/dark",
+  };
+  const STAMPS_GOAL = 5;
+
+  // Зона, где есть площадки: рамка вокруг всех мест с отступом.
+  const vb = VENUES.reduce((b, v) => [Math.min(b[0], v.coords[0]), Math.min(b[1], v.coords[1]), Math.max(b[2], v.coords[0]), Math.max(b[3], v.coords[1])], [180, 90, -180, -90]);
+  const FOCUS = [vb[0] - 0.018, vb[1] - 0.012, vb[2] + 0.018, vb[3] + 0.012];
+  const CENTER = [(FOCUS[0] + FOCUS[2]) / 2, (FOCUS[1] + FOCUS[3]) / 2];
+
+  // ---------- Иконки (линейные, 24×24) ----------
+  const ICONS = {
+    cinema: '<rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M7.5 5v14M16.5 5v14M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/>',
+    theatre: '<path d="M3 4.5h18"/><path d="M4 4.5v15c3 0 4.5-3 4.5-8.5V4.5M20 4.5v15c-3 0-4.5-3-4.5-8.5V4.5"/><path d="M8.5 4.5c.6 3 2 4.5 3.5 4.5s2.9-1.5 3.5-4.5"/>',
+    museum: '<path d="M3 9.5 12 4l9 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3 20h18"/>',
+    concert: '<path d="M9 18V6.5l10-2.5v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
+  };
+  const icon = (t, size = 18) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${ICONS[t]}</svg>`;
+  const STAR = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2.8l2.8 6 6.5.7-4.9 4.4 1.4 6.4L12 17l-5.8 3.3 1.4-6.4-4.9-4.4 6.5-.7z"/></svg>';
+  const SEAL = (s = 22) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.5" stroke-dasharray="2 2"/><path d="m9.5 12 1.8 1.8 3.2-3.6"/></svg>`;
+
+  // ---------- Хранилище ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+  };
+
+  const state = {
+    cat: "all", mode: "places", query: "", venue: null, day: 0,
+    theme: store.get("pk-theme", null) || "dark",
+    orbit: null, me: null, hover: null,
+    stamps: store.get("pk-stamps", []),
+  };
+  document.documentElement.dataset.theme = state.theme;
+
+  // ---------- Утилиты ----------
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmtTime = (d) => d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const fmtDay = (d) => d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  const dayDate = (i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + i); return d; };
+  const sameDay = (a, b) => a.toDateString() === b.toDateString();
+  const dayLabel = (i) => (i === 0 ? "Сегодня" : i === 1 ? "Завтра" : dayDate(i).toLocaleDateString("ru-RU", { weekday: "short" }));
+  const dur = (m) => `${Math.floor(m / 60)} ч${m % 60 ? " " + (m % 60) + " мин" : ""}`;
+  const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c; };
+  const gradient = (p) => `linear-gradient(160deg, ${p[1]} 0%, ${p[0]} 75%)`;
+  const heroFor = () => `#2b2b2e`;
+  const upcoming = (v, id) => v.sessions[id].filter((s) => s.date > new Date());
+  const stampedVenues = () => [...new Set(state.stamps.map((s) => s.venue))].filter((id) => byId[id]);
+  const hasStamp = (id) => state.stamps.some((s) => s.venue === id);
+
+  // Если у события есть поле image (URL постера/фото) — показываем его, иначе фирменную обложку.
+  const poster = (ev, size = "sm") => ev.image
+    ? `<div class="poster ${size} has-img" style="background:#111 url('${encodeURI(ev.image)}') center/cover"></div>`
+    : `<div class="poster ${size}" style="background:${gradient(ev.palette)}"></div>`;
+  const ico = (t) => `<span class="ico" style="--c:${CATS[t].color}">${icon(t)}</span>`;
+
+  function haversine([lng1, lat1], [lng2, lat2]) {
+    const R = 6371, toR = Math.PI / 180;
+    const dLat = (lat2 - lat1) * toR, dLng = (lng2 - lng1) * toR;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toR) * Math.cos(lat2 * toR) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+  const fmtDist = (km) => (km < 1 ? `${Math.round((km * 1000) / 10) * 10} м` : `${km.toFixed(1).replace(".", ",")} км`);
+  const travel = (km) => {
+    const road = km * 1.3;
+    if (road < 2) return `${Math.max(2, Math.round((road / 4.8) * 60))} мин пешком`;
+    return `${Math.max(5, Math.round((road / 22) * 60 + 4))} мин в пути`;
+  };
+
+  const matchesQuery = (txt) => !state.query || txt.toLowerCase().includes(state.query);
+  const venueVisible = (v) => {
+    if (state.cat !== "all" && v.type !== state.cat) return false;
+    if (!state.query || state.mode === "near") return true;
+    return matchesQuery([v.name, v.place, v.address, ...v.events.map((e) => EVENTS[e].title)].join(" "));
+  };
+
+  // ---------- Карта (только зона с площадками) ----------
+  const map = new maplibregl.Map({
+    container: "map",
+    style: STYLES[state.theme],
+    center: CENTER, zoom: 11.8, pitch: 0, bearing: 0,
+    minZoom: 11.6, maxZoom: 18.5, maxPitch: 72,
+    antialias: true,
+    attributionControl: { compact: true },
+    maxBounds: [[FOCUS[0] - 0.06, FOCUS[1] - 0.04], [FOCUS[2] + 0.06, FOCUS[3] + 0.04]],
+  });
+  let srcName = "openmaptiles";
+
+  function homeView() {
+    const cam = map.cameraForBounds([[vb[0], vb[1]], [vb[2], vb[3]]], { padding: basePadding(false) });
+    return { center: cam?.center || CENTER, zoom: Math.max(12.4, (cam?.zoom || 13) + 0.35), pitch: 52, bearing: -14 };
+  }
+
+  // Маска: всё за пределами зоны приглушено, сама зона — с тонкой золотой рамкой
+  function roundedRect([x1, y1, x2, y2], r = 0.006, steps = 8) {
+    const pts = [];
+    const ry = r * 0.56;
+    const corners = [[x2 - r, y2 - ry, 0], [x1 + r, y2 - ry, 90], [x1 + r, y1 + ry, 180], [x2 - r, y1 + ry, 270]];
+    corners.forEach(([cx, cy, a0]) => { for (let i = 0; i <= steps; i++) { const a = ((a0 + (i / steps) * 90) * Math.PI) / 180; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * ry]); } });
+    pts.push(pts[0]);
+    return pts;
+  }
+  const focusRing = roundedRect(FOCUS);
+  const maskData = { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[40, 50], [60, 50], [60, 62], [40, 62], [40, 50]], focusRing.slice().reverse()] } };
+  const frameData = { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: focusRing } };
+
+  // ---- Реальные здания площадок: контур и высота из OSM-тайлов ----
+  const footprints = {};
+  function pointInRing(pt, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i], [xj, yj] = ring[j];
+      if (yi > pt[1] !== yj > pt[1] && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  const polys = (g) => (g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : []);
+  const ringDist = (pt, ring) => { let m = Infinity; for (const c of ring) m = Math.min(m, haversine(pt, c)); return m; };
+  const ringArea = (r) => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] + r[i][0]) * (r[j][1] - r[i][1]); return Math.abs(a); };
+
+  function captureFootprints() {
+    if (map.getZoom() < 14) return; // на z14+ в тайлах полная геометрия и высоты
+    let feats;
+    try { feats = map.querySourceFeatures(srcName, { sourceLayer: "building" }); } catch (_) { return; }
+    if (!feats.length) return;
+    let changed = false;
+    VENUES.forEach((v) => {
+      if (footprints[v.id]) return;
+      let hits = feats.filter((f) => polys(f.geometry).some((p) => pointInRing(v.coords, p[0])));
+      if (!hits.length) {
+        let best = null, bestScore = Infinity;
+        feats.forEach((f) => polys(f.geometry).forEach((p) => {
+          const d = ringDist(v.coords, p[0]);
+          if (d > 0.08) return;
+          const score = d - Math.min(0.03, Math.sqrt(ringArea(p[0])) * 30); // предпочитаем крупные здания (ТЦ)
+          if (score < bestScore) { bestScore = score; best = f; }
+        }));
+        if (best) hits = [best];
+      }
+      if (!hits.length) return;
+      const seed = hits.sort((a, b) => ringArea(polys(b.geometry)[0][0]) - ringArea(polys(a.geometry)[0][0]))[0];
+      // все куски этого же здания (OSM id), в т.ч. на стыках тайлов
+      const parts = seed.id != null ? feats.filter((f) => f.id === seed.id) : [seed];
+      footprints[v.id] = parts.map((f) => ({
+        type: "Feature",
+        properties: { id: v.id, color: CATS[v.type].color, h: Math.max(f.properties.render_height || 12, 6), base: f.properties.render_min_height || 0 },
+        geometry: f.geometry,
+      }));
+      changed = true;
+    });
+    if (changed) refreshMapData();
+  }
+
+  function venueBuildingsData() {
+    const feats = [];
+    VENUES.filter(venueVisible).forEach((v) => (footprints[v.id] || []).forEach((f) => feats.push({
+      ...f, properties: { ...f.properties, active: state.venue?.id === v.id || state.hover === v.id ? 1 : 0, stamped: hasStamp(v.id) ? 1 : 0 },
+    })));
+    return { type: "FeatureCollection", features: feats };
+  }
+  function circle([lng, lat], r, steps = 40) {
+    const pts = [], dLat = r / 111320, dLng = r / (111320 * Math.cos((lat * Math.PI) / 180));
+    for (let i = 0; i <= steps; i++) { const a = (i / steps) * Math.PI * 2; pts.push([lng + Math.cos(a) * dLng, lat + Math.sin(a) * dLat]); }
+    return [pts];
+  }
+  const glowData = () => ({
+    type: "FeatureCollection",
+    features: VENUES.filter(venueVisible).map((v) => ({ type: "Feature", properties: { color: CATS[v.type].color, active: state.venue?.id === v.id ? 1 : 0 }, geometry: { type: "Point", coordinates: v.coords } })),
+  });
+  const beamData = () => ({
+    type: "FeatureCollection",
+    features: state.venue ? [{ type: "Feature", properties: { color: CATS[state.venue.type].color }, geometry: { type: "Polygon", coordinates: circle(state.venue.coords, 3) } }] : [],
+  });
+  const routeData = () => ({
+    type: "FeatureCollection",
+    features: !state.me ? [] : nearestVenues().slice(0, 3).map(({ v }) => ({ type: "Feature", properties: { color: CATS[v.type].color }, geometry: { type: "LineString", coordinates: [state.me.coords, v.coords] } })),
+  });
+
+  function addLayers() {
+    const style = map.getStyle();
+    const firstSymbol = style.layers.find((l) => l.type === "symbol")?.id;
+    const dark = state.theme === "dark";
+    srcName = Object.keys(style.sources).find((k) => style.sources[k].type === "vector") || "openmaptiles";
+    style.layers.forEach((l) => {
+      if (dark && l.type === "background") map.setPaintProperty(l.id, "background-color", "#232325");
+      if (dark && l.type === "fill" && /water/i.test(l.id)) map.setPaintProperty(l.id, "fill-color", "#1a1a1c");
+      if (l["source-layer"] === "building" || l.type === "fill-extrusion") map.setLayoutProperty(l.id, "visibility", "none");
+      // убираем лишний шум: POI-иконки и мелкие подписи
+      if (l.type === "symbol" && /poi|transit|airport|housenumber/i.test(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
+    });
+
+    map.addLayer({
+      id: "pk-buildings", type: "fill-extrusion", source: srcName, "source-layer": "building", minzoom: 12.5,
+      paint: {
+        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8],
+          0, dark ? "#2c2c2f" : "#e8e8e6", 40, dark ? "#333336" : "#dededb", 120, dark ? "#3b3b3f" : "#d3d3d0"],
+        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13.6, ["coalesce", ["get", "render_height"], 8]],
+        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+        "fill-extrusion-opacity": 0.94,
+        "fill-extrusion-vertical-gradient": true,
+      },
+    }, firstSymbol);
+
+    map.addSource("pk-route", { type: "geojson", data: routeData() });
+    map.addLayer({ id: "pk-route", type: "line", source: "pk-route", paint: { "line-color": dark ? "#ebebea" : "#1d1d1f", "line-width": 1.2, "line-dasharray": [2, 2] } }, "pk-buildings");
+
+    // Маска вне зоны + рамка
+    map.addSource("pk-mask", { type: "geojson", data: maskData });
+    map.addLayer({ id: "pk-mask", type: "fill", source: "pk-mask", paint: { "fill-color": dark ? "#1f1f21" : "#f3f3f1", "fill-opacity": 0.88 } }, firstSymbol);
+    map.addSource("pk-frame", { type: "geojson", data: frameData });
+    map.addLayer({ id: "pk-frame", type: "line", source: "pk-frame", paint: { "line-color": dark ? "#ebebea" : "#1d1d1f", "line-width": 1, "line-opacity": 0.3 } });
+
+    try {
+      map.setSky?.({
+        "sky-color": dark ? "#1f1f21" : "#f3f3f1", "horizon-color": dark ? "#1f1f21" : "#f3f3f1",
+        "fog-color": dark ? "#1f1f21" : "#f3f3f1", "sky-horizon-blend": 0.2, "horizon-fog-blend": 0.1, "fog-ground-blend": 1,
+      });
+    } catch (_) {}
+    Object.keys(footprints).forEach((k) => delete footprints[k]);
+  }
+
+  function refreshMapData() {
+    map.getSource("pk-route")?.setData(routeData());
+  }
+
+  map.on("style.load", addLayers);
+  let introDone = false;
+  map.once("style.load", () => setTimeout(() => $("#loader").classList.add("hide"), 500));
+  map.once("load", () => {
+    $("#loader").classList.add("hide");
+    const fromHash = location.hash.match(/venue=([\w-]+)/)?.[1];
+    if (fromHash && byId[fromHash]) { introDone = true; return selectVenue(byId[fromHash]); }
+    map.easeTo({ ...homeView(), padding: basePadding(), duration: 3200, easing: (t) => 1 - Math.pow(1 - t, 3) });
+    map.once("moveend", () => (introDone = true));
+  });
+  setTimeout(() => $("#loader").classList.add("hide"), 4000);
+  map.on("zoom", () => document.body.classList.toggle("map-zoomed", map.getZoom() > 15.3));
+
+  // ---------- Маркеры ----------
+  const markers = {};
+  VENUES.forEach((v) => {
+    const el = document.createElement("div");
+    el.className = "marker";
+    el.style.setProperty("--c", CATS[v.type].color);
+    el.innerHTML = `<div class="marker-dot"></div><div class="marker-pin"><i>${icon(v.type, 15)}</i><span>${esc(v.type === "cinema" ? v.place : v.name)}</span></div>`;
+    el.addEventListener("click", (e) => { e.stopPropagation(); selectVenue(v); });
+    markers[v.id] = { el, m: new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(v.coords).addTo(map) };
+  });
+  let meMarker = null;
+
+  // ---------- Камера ----------
+  function basePadding(withVenue = false) {
+    if (isMobile()) return { top: 70, bottom: withVenue ? window.innerHeight * 0.74 : window.innerHeight * 0.42, left: 10, right: 10 };
+    return { top: 90, bottom: 30, left: 420, right: withVenue ? 480 : 30 };
+  }
+  function stopOrbit() { if (state.orbit) cancelAnimationFrame(state.orbit); state.orbit = null; }
+  function startOrbit() {
+    stopOrbit();
+    let last = performance.now();
+    const tick = (now) => { const dt = Math.min(64, now - last); last = now; map.setBearing(map.getBearing() + dt * 0.003); state.orbit = requestAnimationFrame(tick); };
+    state.orbit = requestAnimationFrame(tick);
+  }
+  ["mousedown", "touchstart", "wheel"].forEach((ev) => map.getCanvasContainer().addEventListener(ev, stopOrbit, { passive: true }));
+
+  // ---------- Панель ----------
+  function renderChips() {
+    const chips = [{ id: "all", label: "Все", color: "var(--text)" }, ...Object.entries(CATS).map(([id, c]) => ({ id, label: c.label, color: c.color }))];
+    $("#chips").innerHTML = chips.map((c) => `<button class="chip ${state.cat === c.id ? "active" : ""}" data-cat="${c.id}"><span class="dot" style="background:${c.color}"></span>${c.label}</button>`).join("");
+  }
+  $("#chips").addEventListener("click", (e) => { const b = e.target.closest("[data-cat]"); if (b) { state.cat = b.dataset.cat; renderAll(); } });
+
+  $("#mode").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-mode]"); if (!b) return;
+    state.mode = b.dataset.mode;
+    [...$("#mode").children].forEach((x) => x.classList.toggle("active", x === b));
+    $("#search-wrap").hidden = state.mode === "near";
+    $("#near-box").hidden = state.mode !== "near";
+    $("#panel").classList.remove("collapsed");
+    if (state.mode === "near" && !state.me) setTimeout(() => $("#address").focus(), 50);
+    renderAll();
+  });
+
+  let searchT;
+  $("#search").addEventListener("input", (e) => {
+    clearTimeout(searchT);
+    searchT = setTimeout(() => { state.query = e.target.value.trim().toLowerCase(); renderAll(); }, 120);
+  });
+
+  const nearestVenues = () => !state.me ? [] :
+    VENUES.filter(venueVisible).map((v) => ({ v, km: haversine(state.me.coords, v.coords) })).sort((a, b) => a.km - b.km);
+  const nextSessionAt = (v) => v.events.flatMap((id) => upcoming(v, id).map((s) => ({ ...s, id }))).sort((a, b) => a.date - b.date)[0];
+
+  function renderList() {
+    const list = $("#list");
+    let i = 0;
+    const delay = () => `animation-delay:${Math.min(i++ * 22, 380)}ms`;
+    const mark = (v) => (hasStamp(v.id) ? ' <span class="stamped-mark" title="Штамп получен">●</span>' : "");
+
+    if (state.mode === "near") {
+      if (!state.me) {
+        list.innerHTML = `<div class="empty"><span class="serif">Что рядом с вами</span>Введите адрес или определите местоположение — покажем ближайшие кино, театры и музеи, где принимают Пушкинскую карту.</div>`;
+        return;
+      }
+      list.innerHTML = `<div class="group-title">Ближайшие<small>${esc(state.me.label)}</small></div>` + nearestVenues().map(({ v, km }) => {
+        const nx = nextSessionAt(v);
+        return `<button class="row ${state.venue?.id === v.id ? "active" : ""}" data-venue="${v.id}" style="${delay()}">
+          ${ico(v.type)}
+          <div class="row-main"><div class="row-title">${esc(v.name)}${mark(v)}</div>
+          <div class="row-sub">${nx ? `${esc(EVENTS[nx.id].title)} · ${sameDay(nx.date, new Date()) ? "сегодня" : fmtDay(nx.date)} в ${fmtTime(nx.date)}` : esc(v.place)}</div></div>
+          <div class="row-side"><b>${fmtDist(km)}</b>${travel(km)}</div>
+        </button>`;
+      }).join("");
+      return;
+    }
+
+    if (state.mode === "places") {
+      const groups = Object.keys(CATS).map((cat) => [cat, VENUES.filter((v) => v.type === cat && venueVisible(v))]).filter(([, a]) => a.length);
+      if (!groups.length) { list.innerHTML = `<div class="empty"><span class="serif">Ничего не нашлось</span>Попробуйте другой запрос.</div>`; return; }
+      list.innerHTML = groups.map(([cat, arr]) => `
+        <div class="group-title">${CATS[cat].label}<small>${arr.length}</small></div>
+        ${arr.map((v) => `
+          <button class="row ${state.venue?.id === v.id ? "active" : ""}" data-venue="${v.id}" style="${delay()}">
+            ${ico(cat)}
+            <div class="row-main"><div class="row-title">${esc(v.name)}${mark(v)}</div><div class="row-sub">${esc(v.place)} · ${esc(v.address)}</div></div>
+            <div class="row-side"><b>${v.events.length}</b>${plural(v.events.length, "событие", "события", "событий")}</div>
+          </button>`).join("")}`).join("");
+      return;
+    }
+
+    const evs = Object.entries(EVENTS).filter(([, ev]) => (state.cat === "all" || ev.type === state.cat) && matchesQuery(ev.title + " " + ev.genre));
+    if (!evs.length) { list.innerHTML = `<div class="empty"><span class="serif">Ничего не нашлось</span>Попробуйте другой запрос.</div>`; return; }
+    const groups = Object.keys(CATS).map((cat) => [cat, evs.filter(([, e]) => e.type === cat)]).filter(([, a]) => a.length);
+    list.innerHTML = groups.map(([cat, arr]) => `
+      <div class="group-title">${CATS[cat].label}<small>${arr.length}</small></div>
+      ${arr.map(([id, ev]) => {
+        const places = VENUES.filter((v) => v.events.includes(id));
+        const prices = places.flatMap((v) => upcoming(v, id).map((s) => s.price));
+        return `<button class="row" data-event="${id}" style="${delay()}">
+          ${poster(ev, "xs")}
+          <div class="row-main"><div class="row-title">${esc(ev.title)}</div>
+          <div class="row-sub">${esc(ev.genre)} · ${places.length} ${plural(places.length, "площадка", "площадки", "площадок")}</div></div>
+          <div class="row-side"><b>${ev.rating.toFixed(1)}</b>${prices.length ? `от ${Math.min(...prices)} ₽` : ""}</div>
+        </button>`;
+      }).join("")}`).join("");
+  }
+
+  $("#list").addEventListener("click", (e) => {
+    const v = e.target.closest("[data-venue]"); if (v) return selectVenue(byId[v.dataset.venue]);
+    const ev = e.target.closest("[data-event]"); if (ev) openEvent(ev.dataset.event);
+  });
+
+  function renderMarkers() {
+    VENUES.forEach((v) => {
+      const { el } = markers[v.id];
+      el.classList.toggle("dim", !venueVisible(v));
+      el.classList.toggle("active", state.venue?.id === v.id);
+      el.classList.toggle("stamped", hasStamp(v.id));
+    });
+  }
+  function renderPassportCount(bump = false) {
+    const n = stampedVenues().length, el = $("#passport-count");
+    el.textContent = n >= STAMPS_GOAL ? `✓ ${n}` : `${n}/${STAMPS_GOAL}`;
+    if (bump) { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+  }
+  function renderAll() { renderChips(); renderList(); renderMarkers(); refreshMapData(); renderPassportCount(); }
+
+  // ---------- Рядом со мной (геокодер Photon на данных OSM) ----------
+  let addrT, addrCtl;
+  $("#address").addEventListener("input", (e) => {
+    clearTimeout(addrT);
+    const q = e.target.value.trim();
+    if (q.length < 3) { $("#suggest").innerHTML = ""; return; }
+    addrT = setTimeout(() => geocode(q), 300);
+  });
+  async function geocode(q) {
+    addrCtl?.abort(); addrCtl = new AbortController();
+    const query = /казан/i.test(q) ? q : `${q}, Казань`;
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6&lat=55.79&lon=49.12&bbox=48.85,55.65,49.35,55.95`;
+    try {
+      const data = await (await fetch(url, { signal: addrCtl.signal })).json();
+      const items = (data.features || []).filter((f) => f.geometry?.coordinates);
+      if (!items.length) { $("#suggest").innerHTML = `<button disabled>Адрес не найден</button>`; return; }
+      $("#suggest").innerHTML = items.map((f, i) => {
+        const p = f.properties;
+        const title = [p.street || p.name, p.housenumber].filter(Boolean).join(", ") || p.name || "Точка на карте";
+        const sub = [p.name && p.street ? p.name : null, p.district, p.city].filter(Boolean).join(" · ");
+        return `<button data-i="${i}">${esc(title)}<small>${esc(sub)}</small></button>`;
+      }).join("");
+      $("#suggest").onclick = (ev) => {
+        const b = ev.target.closest("[data-i]"); if (!b) return;
+        const f = items[+b.dataset.i], p = f.properties;
+        const label = [p.street || p.name, p.housenumber].filter(Boolean).join(", ");
+        $("#address").value = label; $("#suggest").innerHTML = "";
+        setMe(f.geometry.coordinates, label);
+      };
+    } catch (err) { if (err.name !== "AbortError") $("#suggest").innerHTML = `<button disabled>Сервис адресов недоступен</button>`; }
+  }
+  $("#geolocate").addEventListener("click", () => {
+    if (!navigator.geolocation) return toast("Геолокация недоступна в этом браузере");
+    toast("Определяем местоположение…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setMe([pos.coords.longitude, pos.coords.latitude], "Моё местоположение"),
+      () => toast("Не удалось определить местоположение — введите адрес"),
+      { enableHighAccuracy: true, timeout: 8000 },
+    );
+  });
+
+  function setMe(coords, label) {
+    state.me = { coords, label };
+    if (!meMarker) { const el = document.createElement("div"); el.className = "me-marker"; meMarker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map); }
+    else meMarker.setLngLat(coords);
+    if (state.venue) closeVenue(true);
+    renderAll();
+    const b = new maplibregl.LngLatBounds(coords, coords);
+    nearestVenues().slice(0, 3).forEach(({ v }) => b.extend(v.coords));
+    stopOrbit();
+    map.fitBounds(b, { padding: { top: 150, bottom: isMobile() ? window.innerHeight * 0.52 : 110, left: isMobile() ? 40 : 470, right: 120 }, pitch: 50, maxZoom: 15.5, duration: 2200 });
+  }
+
+  // ---------- Площадка ----------
+  function selectVenue(v) {
+    if (!v) return;
+    state.venue = v; state.day = 0;
+    history.replaceState(null, "", `#venue=${v.id}`);
+    renderVenue();
+    $("#venue").classList.add("open"); $("#venue").setAttribute("aria-hidden", "false");
+    document.body.classList.add("venue-open");
+    if (isMobile()) $("#panel").classList.add("collapsed");
+    renderList(); renderMarkers(); refreshMapData();
+    stopOrbit();
+    map.flyTo({ center: v.coords, zoom: 16.7, pitch: 64, bearing: map.getBearing() + (introDone ? 35 : 0) - 10, padding: basePadding(true), speed: 0.85, curve: 1.5, essential: true });
+    map.once("moveend", () => { if (state.venue === v) startOrbit(); });
+  }
+  function closeVenue(silent = false) {
+    state.venue = null; stopOrbit();
+    history.replaceState(null, "", location.pathname + location.search);
+    $("#venue").classList.remove("open"); $("#venue").setAttribute("aria-hidden", "true");
+    document.body.classList.remove("venue-open");
+    renderList(); renderMarkers(); refreshMapData();
+    if (!silent) map.easeTo({ zoom: 14.4, pitch: 56, padding: basePadding(false), duration: 1400 });
+  }
+  $("#venue-close").addEventListener("click", () => closeVenue());
+
+  function renderVenue() {
+    const v = state.venue, cat = CATS[v.type];
+    const route = `https://yandex.ru/maps/?rtext=${state.me ? state.me.coords[1] + "," + state.me.coords[0] : ""}~${v.coords[1]},${v.coords[0]}&rtt=mt`;
+    const km = state.me ? haversine(state.me.coords, v.coords) : null;
+    $("#venue-hero").style.setProperty("--hero", heroFor(v.type));
+    $("#venue-hero").innerHTML = `
+      <div class="kicker">${cat.label} · ${esc(v.place)}</div>
+      <div class="venue-name">${esc(v.name)}</div>
+      <div class="venue-addr">${esc(v.address)}${km != null ? ` · ${fmtDist(km)} от вас` : ""}</div>
+      <div class="venue-meta">${v.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}
+        ${hasStamp(v.id) ? `<span class="stamp-chip">${SEAL(14)} Штамп получен</span>` : ""}</div>
+      <div class="hero-actions">
+        <a class="btn ghost-light" href="${route}" target="_blank" rel="noopener">Маршрут</a>
+        ${v.site ? `<a class="btn ghost-light" href="${v.site}" target="_blank" rel="noopener">Сайт площадки</a>` : ""}
+      </div>`;
+    $("#venue-tabs").innerHTML = Array.from({ length: 7 }, (_, i) => {
+      const d = dayDate(i);
+      const has = v.events.some((e) => v.sessions[e].some((s) => sameDay(s.date, d) && s.date > new Date()));
+      return `<button class="day ${state.day === i ? "active" : ""} ${has ? "" : "off"}" data-day="${i}"><b>${d.getDate()}</b>${dayLabel(i)}</button>`;
+    }).join("");
+    renderVenueBody();
+  }
+  $("#venue-tabs").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-day]"); if (!b) return;
+    state.day = +b.dataset.day;
+    [...$("#venue-tabs").children].forEach((x) => x.classList.toggle("active", x === b));
+    renderVenueBody();
+  });
+
+  const timeBtn = (v, id, s, withDay = false) =>
+    `<button class="time" data-buy="${v.id}|${id}|${s.date.getTime()}">${withDay ? s.date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "") + ", " : ""}${fmtTime(s.date)}<small>${s.price} ₽</small></button>`;
+
+  function renderVenueBody() {
+    const v = state.venue, d = dayDate(state.day), now = new Date();
+    const items = v.events.map((id) => [id, EVENTS[id], v.sessions[id].filter((s) => sameDay(s.date, d) && s.date > now)]).sort((a, b) => b[2].length - a[2].length);
+    $("#venue-body").innerHTML = items.map(([id, ev, ss], i) => `
+      <div class="card" style="animation-delay:${i * 45}ms">
+        <div data-event="${id}" style="cursor:pointer">${poster(ev)}</div>
+        <div class="card-main">
+          <span class="pk">Пушкинская карта</span>
+          <div class="card-title" data-event="${id}">${esc(ev.title)}</div>
+          <div class="card-meta"><span class="score-inline">${STAR}${ev.rating.toFixed(1)}</span><span>${esc(ev.genre)}</span><span>${ev.age}</span><span>${dur(ev.duration)}</span></div>
+          ${ss.length ? `<div class="times">${ss.slice(0, 6).map((s) => timeBtn(v, id, s)).join("")}</div>` : `<div class="no-times">Нет сеансов в этот день</div>`}
+        </div>
+      </div>`).join("");
+    $("#venue-body").scrollTop = 0;
+  }
+  $("#venue-body").addEventListener("click", (e) => {
+    const t = e.target.closest("[data-buy]"); if (t) return openCheckout(...t.dataset.buy.split("|"));
+    const c = e.target.closest("[data-event]"); if (c) openEvent(c.dataset.event, state.venue);
+  });
+
+  // ---------- Карточка события ----------
+  function openEvent(id, venue = null) {
+    const ev = EVENTS[id];
+    state.currentEvent = id;
+    const places = venue ? [venue, ...VENUES.filter((v) => v !== venue && v.events.includes(id))] : VENUES.filter((v) => v.events.includes(id));
+    if (state.me) places.sort((a, b) => (a === venue ? -1 : b === venue ? 1 : haversine(state.me.coords, a.coords) - haversine(state.me.coords, b.coords)));
+    const stars = Math.round(ev.rating / 2);
+    const ytSearch = `https://www.youtube.com/results?search_query=${encodeURIComponent(ev.title + " " + (ev.type === "cinema" ? "трейлер" : "Казань"))}`;
+    const first = places.map((v) => [v, upcoming(v, id)[0]]).find(([, s]) => s);
+    const prices = places.flatMap((v) => upcoming(v, id).map((s) => s.price));
+
+    $("#modal-content").innerHTML = `
+      <div class="ev-hero" style="--hero:#2b2b2e">
+        ${poster(ev, "lg")}
+        <div class="ev-info">
+          <span class="pk" style="color:#f2f2f0;opacity:.8">Можно оплатить Пушкинской картой</span>
+          <h2 class="ev-title">${esc(ev.title)}</h2>
+          <div class="ev-meta"><span>${CATS[ev.type].label}</span><span>${esc(ev.genre)}</span><span>${ev.age}</span><span>${dur(ev.duration)}</span></div>
+          <div class="score"><b>${ev.rating.toFixed(1)}</b>
+            <div><div class="stars">${Array.from({ length: 5 }, (_, i) => `<span class="${i < stars ? "on" : ""}">${STAR}</span>`).join("")}</div>
+            <small>${ev.votes.toLocaleString("ru-RU")} оценок зрителей</small></div></div>
+          <div class="ev-actions">
+            ${first ? `<button class="btn gold" data-buy="${first[0].id}|${id}|${first[1].date.getTime()}">Купить билет · от ${Math.min(...prices)} ₽</button>` : ""}
+            ${ev.trailer ? `<button class="btn ghost-light" data-play>Смотреть трейлер</button>` : `<a class="btn ghost-light" href="${ytSearch}" target="_blank" rel="noopener">${ev.type === "cinema" ? "Трейлер" : "Видео"} на YouTube</a>`}
+          </div>
+        </div>
+      </div>
+      <div class="ev-body">
+        <div id="trailer-slot"></div>
+        <div><div class="label">О событии</div><p>${esc(ev.description)}</p></div>
+        <div><div class="label">Где посмотреть · ${places.length}</div>
+          ${places.map((v) => `<div class="where-row">
+              ${ico(v.type)}
+              <div class="row-main"><div class="row-title">${esc(v.name)}</div><div class="row-sub">${esc(v.place)}${state.me ? " · " + fmtDist(haversine(state.me.coords, v.coords)) : ""}</div>
+              ${venue === v ? "" : `<button class="goto" data-goto="${v.id}">Показать на карте →</button>`}</div>
+              <div class="times">${upcoming(v, id).slice(0, 4).map((s) => timeBtn(v, id, s, true)).join("")}</div>
+            </div>`).join("")}
+        </div>
+        <p class="note">Рейтинг, сеансы и цены — демонстрационные. Наличие оплаты Пушкинской картой уточняйте при покупке.</p>
+      </div>`;
+    openModal();
+  }
+
+  $("#modal-content").addEventListener("click", (e) => {
+    if (e.target.closest("[data-play]")) {
+      const id = EVENTS[state.currentEvent]?.trailer;
+      $("#trailer-slot").innerHTML = `<div class="trailer"><iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe></div>`;
+      $("#trailer-slot").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    const buy = e.target.closest("[data-buy]"); if (buy) return openCheckout(...buy.dataset.buy.split("|"));
+    const g = e.target.closest("[data-goto]"); if (g) { closeModal(); selectVenue(byId[g.dataset.goto]); }
+    const act = e.target.closest("[data-action]"); if (act) actions[act.dataset.action]?.(act);
+  });
+
+  // ---------- Покупка + штамп ----------
+  const checkout = { qty: 1 };
+  function openCheckout(venueId, eventId, ts) {
+    const v = byId[venueId], ev = EVENTS[eventId];
+    const s = v.sessions[eventId].find((x) => x.date.getTime() === +ts);
+    if (!s) return;
+    Object.assign(checkout, { v, ev, eventId, s, qty: 1 });
+    const fresh = !hasStamp(v.id);
+    const left = Math.max(0, STAMPS_GOAL - stampedVenues().length - (fresh ? 1 : 0));
+    $("#modal-content").innerHTML = `
+      <div class="checkout">
+        <div><div class="label">Оформление билета</div><h2>Пушкинская карта</h2></div>
+        <div class="ticket">
+          <div class="ticket-main">
+            <span class="pk">${CATS[ev.type].label} · ${ev.age}</span>
+            <div class="t-title">${esc(ev.title)}</div>
+            <div class="t-sub">${esc(v.name)} · ${esc(v.address)}</div>
+            <div class="t-sub">${fmtDay(s.date)}, ${s.date.toLocaleDateString("ru-RU", { weekday: "long" })} · ${fmtTime(s.date)}</div>
+          </div>
+          <div class="ticket-side"><b id="co-total">${s.price} ₽</b><small>${s.price} ₽ × <span id="co-q">1</span></small></div>
+        </div>
+        <div class="qty"><span>Количество билетов</span>
+          <div class="qty-ctrl"><button data-action="minus">−</button><span id="co-qty">1</span><button data-action="plus">+</button></div></div>
+        <div class="perk">${SEAL()}<div>${fresh
+          ? `За покупку вы получите <b>штамп «${esc(v.name)}»</b> в культурный паспорт. ${left ? `До участия в розыгрыше — ещё ${left} ${plural(left, "место", "места", "мест")}.` : "Это пятое место — вы станете участником розыгрыша!"}`
+          : "Штамп этого места уже есть в паспорте. Чтобы приблизиться к розыгрышу, выберите новое место."}</div></div>
+        <button class="btn gold block" data-action="pay">Оплатить Пушкинской картой</button>
+        <p class="note">Демо-режим: деньги не списываются. В рабочей версии здесь будет платёжный виджет билетного оператора, а штамп начисляется после подтверждения покупки.</p>
+      </div>`;
+    $(".modal-card").classList.add("narrow");
+    openModal(true);
+  }
+  const actions = {
+    plus() { checkout.qty = Math.min(4, checkout.qty + 1); updQty(); },
+    minus() { checkout.qty = Math.max(1, checkout.qty - 1); updQty(); },
+    pay(btn) {
+      btn.disabled = true; btn.textContent = "Обработка…";
+      setTimeout(() => {
+        const fresh = !hasStamp(checkout.v.id);
+        state.stamps.push({ venue: checkout.v.id, event: checkout.eventId, date: checkout.s.date.toISOString(), ts: Date.now() });
+        store.set("pk-stamps", state.stamps);
+        renderAll(); renderPassportCount(true);
+        if (state.venue) renderVenue();
+        openPassport(fresh ? checkout.v.id : null, true);
+      }, 900);
+    },
+    reset() {
+      if (!confirm("Очистить паспорт? Все штампы будут удалены.")) return;
+      state.stamps = []; store.set("pk-stamps", []); store.set("pk-draw-code", null);
+      renderAll(); if (state.venue) renderVenue(); openPassport();
+    },
+  };
+  function updQty() {
+    $("#co-qty").textContent = checkout.qty; $("#co-q").textContent = checkout.qty;
+    $("#co-total").textContent = `${checkout.s.price * checkout.qty} ₽`;
+  }
+
+  // ---------- Культурный паспорт ----------
+  function stampSVG(v, i) {
+    const name = v.name.replace(/[«»"]/g, "").toUpperCase();
+    const short = name.length > 24 ? name.slice(0, 23) + "…" : name;
+    const date = new Date(state.stamps.find((s) => s.venue === v.id).ts).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    const id = `arc-${v.id}`;
+    return `<svg class="stamp" viewBox="0 0 100 100" style="--c:var(--accent);--r:${[-9, 6, -4, 11, -13][i % 5]}deg">
+      <defs><path id="${id}" d="M50 50 m-36 0 a36 36 0 1 1 72 0 a36 36 0 1 1 -72 0"/></defs>
+      <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width=".7"/>
+      <circle cx="50" cy="50" r="27" fill="none" stroke="currentColor" stroke-width=".7"/>
+      <text><textPath href="#${id}">${esc(short)} · КАЗАНЬ ·</textPath></text>
+      <g transform="translate(38 31)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${ICONS[v.type]}</g>
+      <text x="50" y="66" text-anchor="middle" class="big" style="font-size:8.5px;letter-spacing:1px">${date}</text>
+    </svg>`;
+  }
+
+  function openPassport(newVenue = null, celebrate = false) {
+    const venues = stampedVenues();
+    const n = venues.length, done = n >= STAMPS_GOAL;
+    let code = store.get("pk-draw-code", null);
+    if (done && !code) { code = "PK-" + Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + String(Date.now()).slice(-4); store.set("pk-draw-code", code); }
+    const slots = Array.from({ length: STAMPS_GOAL }, (_, i) => {
+      const v = byId[venues[i]];
+      return v ? `<div class="slot filled ${v.id === newVenue ? "new" : ""}" title="${esc(v.name)}">${stampSVG(v, i)}</div>` : `<div class="slot">${i + 1}</div>`;
+    }).join("");
+    $("#modal-content").innerHTML = `
+      <div class="passport">
+        <div class="passport-head">
+          <div><div class="label">${celebrate ? (newVenue ? "Билет оформлен · новый штамп" : "Билет оформлен") : "Ваш прогресс"}</div><h2>Культурный паспорт</h2></div>
+          <div style="font-family:var(--serif);font-size:40px;font-weight:600;line-height:1">${Math.min(n, STAMPS_GOAL)}<span style="color:var(--muted);font-size:24px">/${STAMPS_GOAL}</span></div>
+        </div>
+        <div class="progress"><i style="width:${(Math.min(n, STAMPS_GOAL) / STAMPS_GOAL) * 100}%"></i></div>
+        <div class="slots">${slots}</div>
+        ${n > STAMPS_GOAL ? `<div><div class="label">Ещё штампы</div><div class="extra-stamps">${venues.slice(STAMPS_GOAL).map((id) => `<span>${esc(byId[id].name)}</span>`).join("")}</div></div>` : ""}
+        ${done
+          ? `<div class="draw"><span class="pk">Вы в розыгрыше</span><b>Пять мест собрано</b><span class="note" style="color:inherit">Ваш номер участника:</span><code>${code}</code><span class="note">Итоги — в последний день месяца.</span></div>`
+          : `<p class="note" style="font-size:13.5px">Ещё ${STAMPS_GOAL - n} ${plural(STAMPS_GOAL - n, "место", "места", "мест")} — и вы участвуете в ежемесячном розыгрыше призов от партнёров.</p>`}
+        <div><div class="label">Как это работает</div>
+          <ol class="rules">
+            <li>Покупайте билеты по Пушкинской карте через этот сайт.</li>
+            <li>За каждое новое место — кинотеатр, театр, музей или концертный зал — в паспорт ставится штамп.</li>
+            <li>Пять штампов из разных мест — участие в розыгрыше. Места со штампом отмечаются на карте.</li>
+          </ol></div>
+        <div class="ev-actions">
+          ${n ? `<button class="btn line" data-action="reset">Очистить (демо)</button>` : `<button class="btn gold" data-close>Выбрать место на карте</button>`}
+        </div>
+      </div>`;
+    $(".modal-card").classList.add("narrow");
+    openModal(true);
+    if (celebrate) toast(newVenue ? `Штамп «${byId[newVenue].name}» добавлен в паспорт` : "Билет оформлен");
+  }
+  $("#btn-passport").addEventListener("click", () => openPassport());
+
+  // ---------- Модальное окно ----------
+  function openModal(narrow = false) {
+    $(".modal-card").classList.toggle("narrow", narrow);
+    $("#modal").classList.add("open"); $("#modal").setAttribute("aria-hidden", "false"); $(".modal-card").scrollTop = 0;
+  }
+  function closeModal() {
+    $("#modal").classList.remove("open"); $("#modal").setAttribute("aria-hidden", "true");
+    setTimeout(() => { if (!$("#modal").classList.contains("open")) $("#modal-content").innerHTML = ""; }, 450);
+  }
+  $("#modal").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closeModal(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if ($("#modal").classList.contains("open")) closeModal(); else if (state.venue) closeVenue();
+  });
+
+  let toastT;
+  function toast(msg) {
+    const t = $("#toast");
+    t.innerHTML = `${SEAL(18)}<span>${esc(msg)}</span>`;
+    t.classList.add("show"); clearTimeout(toastT);
+    toastT = setTimeout(() => t.classList.remove("show"), 3200);
+  }
+
+  // ---------- О программе ----------
+  $("#btn-about").addEventListener("click", () => {
+    $("#modal-content").innerHTML = `
+      <div class="about">
+        <div><div class="label">О программе</div><h2>Пушкинская карта</h2></div>
+        <p>Государственная программа для молодёжи от 14 до 22 лет: на карту зачисляются деньги, которые можно потратить на билеты в кино, театры, музеи и на концерты. Актуальный годовой лимит указан в приложении «Госуслуги Культура».</p>
+        <div class="facts">
+          <div class="fact"><b>${VENUES.length}</b><span>площадок на карте</span></div>
+          <div class="fact"><b>${Object.keys(EVENTS).length}</b><span>событий в афише</span></div>
+          <div class="fact"><b>14–22</b><span>возраст участников</span></div>
+        </div>
+        <div><div class="label">Как получить и потратить</div>
+        <ol class="rules">
+          <li>Скачайте «Госуслуги Культура» и войдите через учётную запись Госуслуг.</li>
+          <li>Оформите виртуальную карту или пластиковую в банке-партнёре.</li>
+          <li>Выберите событие на карте Казани и нажмите «Купить билет».</li>
+          <li>В кино картой можно оплатить только фильмы с отметкой программы.</li>
+        </ol></div>
+        <p class="note">Площадки собраны из открытых источников; рейтинги, сеансы и цены на сайте — демонстрационные.</p>
+        <a class="btn gold" style="width:fit-content" href="https://www.culture.ru/pushkinskaya-karta" target="_blank" rel="noopener">Подробнее на culture.ru</a>
+      </div>`;
+    openModal(true);
+  });
+
+  // ---------- Управление ----------
+  $("#btn-theme").addEventListener("click", () => {
+    state.theme = state.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = state.theme;
+    store.set("pk-theme", state.theme);
+    map.setStyle(STYLES[state.theme], { diff: false });
+  });
+  $("#ctrl-tilt").addEventListener("click", (e) => {
+    const flat = map.getPitch() > 10;
+    stopOrbit(); map.easeTo({ pitch: flat ? 0 : 60, duration: 900 });
+    e.currentTarget.textContent = flat ? "2D" : "3D";
+  });
+  $("#ctrl-north").addEventListener("click", () => { stopOrbit(); map.easeTo({ bearing: 0, duration: 900 }); });
+  const goHome = () => { if (state.venue) closeVenue(true); stopOrbit(); map.flyTo({ ...homeView(), padding: basePadding(false), speed: 0.8 }); };
+  $("#ctrl-home").addEventListener("click", goHome);
+  $("#brand").addEventListener("click", (e) => { e.preventDefault(); goHome(); });
+  $("#panel-handle").addEventListener("click", () => $("#panel").classList.toggle("collapsed"));
+  $("#search").addEventListener("focus", () => $("#panel").classList.remove("collapsed"));
+  window.addEventListener("hashchange", () => {
+    const id = location.hash.match(/venue=([\w-]+)/)?.[1];
+    if (id && byId[id] && state.venue?.id !== id) selectVenue(byId[id]);
+  });
+
+  window.__map = map;
+  renderAll();
+})();
