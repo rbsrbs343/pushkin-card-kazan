@@ -90,7 +90,7 @@
     container: "map",
     style: STYLES[state.theme],
     center: CENTER, zoom: 11.8, pitch: 0, bearing: 0,
-    minZoom: 11.6, maxZoom: 18.5, maxPitch: 72,
+    minZoom: isMobile() ? 10.6 : 11.6, maxZoom: 18.5, maxPitch: 72,
     antialias: true,
     attributionControl: { compact: true },
     maxBounds: [[FOCUS[0] - 0.06, FOCUS[1] - 0.04], [FOCUS[2] + 0.06, FOCUS[3] + 0.04]],
@@ -99,6 +99,7 @@
 
   function homeView() {
     const cam = map.cameraForBounds([[vb[0], vb[1]], [vb[2], vb[3]]], { padding: basePadding(false) });
+    if (isMobile()) return { center: cam?.center || CENTER, zoom: Math.max(map.getMinZoom(), (cam?.zoom || 12) - 0.2), pitch: 35, bearing: 0 };
     return { center: cam?.center || CENTER, zoom: Math.max(12.4, (cam?.zoom || 13) + 0.35), pitch: 52, bearing: -14 };
   }
 
@@ -259,9 +260,83 @@
   });
   let meMarker = null;
 
+  // ---------- Шторки для телефона ----------
+  const TOP_GAP = () => 66 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sat")) || 0);
+  function makeSheet(el, { snaps, grips, onClose }) {
+    const sh = { el, snap: 0 };
+    const full = () => el.getBoundingClientRect().height || window.innerHeight - TOP_GAP();
+    sh.heights = () => snaps().map((f) => Math.min(full(), typeof f === "function" ? f() : f));
+    sh.set = (h, animate = true) => {
+      el.classList.toggle("dragging", !animate);
+      el.style.setProperty("--vis", `${h}px`);
+      el.style.setProperty("--hidden", `${Math.max(0, full() - h)}px`);
+    };
+    sh.to = (i) => { const hs = sh.heights(); sh.snap = Math.max(0, Math.min(hs.length - 1, i)); sh.set(hs[sh.snap]); sh.onSnap?.(hs[sh.snap]); };
+    sh.vis = () => sh.heights()[sh.snap];
+
+    let startY = 0, startH = 0, dragging = false, tracking = false, fromBody = null;
+    const onStart = (e, body) => {
+      if (!isMobile()) return;
+      const t = e.touches[0];
+      if (body && body.scrollTop > 2) return; // список прокручен — даём ему скроллиться
+      if (e.target.closest("input, .chips")) return;
+      tracking = true; dragging = false; fromBody = body;
+      startY = t.clientY; startH = sh.vis();
+    };
+    const onMove = (e) => {
+      if (!tracking) return;
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dy) < 8) return;
+        if (fromBody && (dy < 0 || fromBody.scrollTop > 2)) { tracking = false; return; } // вверх по списку = обычный скролл
+        dragging = true;
+      }
+      e.preventDefault();
+      const hs = sh.heights();
+      sh.set(Math.max(hs[0] * 0.5, Math.min(full(), startH - dy)), false);
+    };
+    const onEnd = (e) => {
+      if (!tracking) return;
+      tracking = false;
+      if (!dragging) return;
+      e.preventDefault();
+      const dy = (e.changedTouches[0]?.clientY ?? startY) - startY;
+      const cur = startH - dy, hs = sh.heights();
+      if (onClose && cur < hs[0] - 90) { el.classList.remove("dragging"); return onClose(); }
+      // ближайшая точка с учётом направления жеста
+      let idx = hs.reduce((b, h, i) => (Math.abs(h - cur) < Math.abs(hs[b] - cur) ? i : b), 0);
+      if (Math.abs(dy) > 40 && idx === sh.snap) idx += dy < 0 ? 1 : -1;
+      sh.to(idx);
+    };
+    grips.forEach((g) => {
+      const body = g.classList.contains("panel-body") || g.classList.contains("venue-body") ? g : null;
+      g.addEventListener("touchstart", (e) => onStart(e, body), { passive: true });
+      g.addEventListener("touchmove", onMove, { passive: false });
+      g.addEventListener("touchend", onEnd, { passive: false });
+      g.addEventListener("touchcancel", onEnd, { passive: false });
+    });
+    return sh;
+  }
+
+  const PEEK = () => $("#panel-head").offsetHeight + 26 + 8;
+  const panelSheet = makeSheet($("#panel"), {
+    snaps: () => [PEEK(), Math.round(window.innerHeight * 0.5), Infinity],
+    grips: [$("#panel-handle"), $("#panel-head"), $("#list")],
+  });
+  const venueSheet = makeSheet($("#venue"), {
+    snaps: () => [Math.round(window.innerHeight * 0.58), Infinity],
+    grips: [$("#venue-grip"), $("#venue-hero"), $("#venue-tabs"), $("#venue-body")],
+    onClose: () => closeVenue(),
+  });
+  // при смене положения шторки списка — подвинуть «центр» карты
+  panelSheet.onSnap = (h) => { if (isMobile() && !state.venue) map.easeTo({ padding: { ...basePadding(false), bottom: Math.min(h, window.innerHeight * 0.6) }, duration: 450 }); };
+  function initSheets() { if (isMobile()) { panelSheet.to(panelSheet.snap); if (state.venue) venueSheet.to(venueSheet.snap); } }
+  window.addEventListener("resize", () => { clearTimeout(initSheets.t); initSheets.t = setTimeout(initSheets, 150); });
+  requestAnimationFrame(initSheets);
+
   // ---------- Камера ----------
   function basePadding(withVenue = false) {
-    if (isMobile()) return { top: 70, bottom: withVenue ? window.innerHeight * 0.74 : window.innerHeight * 0.42, left: 10, right: 10 };
+    if (isMobile()) return { top: 70, bottom: withVenue ? Math.round(window.innerHeight * 0.58) : (panelSheet?.vis?.() || 170), left: 28, right: 28 };
     return { top: 90, bottom: 30, left: 420, right: withVenue ? 480 : 30 };
   }
   function stopOrbit() { if (state.orbit) cancelAnimationFrame(state.orbit); state.orbit = null; }
@@ -286,7 +361,7 @@
     [...$("#mode").children].forEach((x) => x.classList.toggle("active", x === b));
     $("#search-wrap").hidden = state.mode === "near";
     $("#near-box").hidden = state.mode !== "near";
-    $("#panel").classList.remove("collapsed");
+    if (isMobile() && panelSheet.snap === 0) panelSheet.to(1);
     if (state.mode === "near" && !state.me) setTimeout(() => $("#address").focus(), 50);
     renderAll();
   });
@@ -425,7 +500,8 @@
     const b = new maplibregl.LngLatBounds(coords, coords);
     nearestVenues().slice(0, 3).forEach(({ v }) => b.extend(v.coords));
     stopOrbit();
-    map.fitBounds(b, { padding: { top: 150, bottom: isMobile() ? window.innerHeight * 0.52 : 110, left: isMobile() ? 40 : 470, right: 120 }, pitch: 50, maxZoom: 15.5, duration: 2200 });
+    if (isMobile()) { $("#address").blur(); panelSheet.to(1); }
+    map.fitBounds(b, { padding: isMobile() ? { top: 90, bottom: Math.round(window.innerHeight * 0.5) + 20, left: 40, right: 60 } : { top: 150, bottom: 110, left: 470, right: 120 }, pitch: 50, maxZoom: 15.5, duration: 2200 });
   }
 
   // ---------- Площадка ----------
@@ -436,7 +512,7 @@
     renderVenue();
     $("#venue").classList.add("open"); $("#venue").setAttribute("aria-hidden", "false");
     document.body.classList.add("venue-open");
-    if (isMobile()) $("#panel").classList.add("collapsed");
+    if (isMobile()) { $("#panel").classList.add("away"); $("#search").blur(); venueSheet.to(0); }
     renderList(); renderMarkers(); refreshMapData();
     stopOrbit();
     map.flyTo({ center: v.coords, zoom: 16.7, pitch: 64, bearing: map.getBearing() + (introDone ? 35 : 0) - 10, padding: basePadding(true), speed: 0.85, curve: 1.5, essential: true });
@@ -447,6 +523,7 @@
     history.replaceState(null, "", location.pathname + location.search);
     $("#venue").classList.remove("open"); $("#venue").setAttribute("aria-hidden", "true");
     document.body.classList.remove("venue-open");
+    $("#panel").classList.remove("away");
     renderList(); renderMarkers(); refreshMapData();
     if (!silent) map.easeTo({ zoom: 14.4, pitch: 56, padding: basePadding(false), duration: 1400 });
   }
@@ -672,7 +749,7 @@
   // ---------- Модальное окно ----------
   function openModal(narrow = false) {
     $(".modal-card").classList.toggle("narrow", narrow);
-    $("#modal").classList.add("open"); $("#modal").setAttribute("aria-hidden", "false"); $(".modal-card").scrollTop = 0;
+    $("#modal").classList.add("open"); $("#modal").setAttribute("aria-hidden", "false"); $("#modal-content").scrollTop = 0;
   }
   function closeModal() {
     $("#modal").classList.remove("open"); $("#modal").setAttribute("aria-hidden", "true");
@@ -732,8 +809,11 @@
   const goHome = () => { if (state.venue) closeVenue(true); stopOrbit(); map.flyTo({ ...homeView(), padding: basePadding(false), speed: 0.8 }); };
   $("#ctrl-home").addEventListener("click", goHome);
   $("#brand").addEventListener("click", (e) => { e.preventDefault(); goHome(); });
-  $("#panel-handle").addEventListener("click", () => $("#panel").classList.toggle("collapsed"));
-  $("#search").addEventListener("focus", () => $("#panel").classList.remove("collapsed"));
+  $("#panel-handle").addEventListener("click", () => panelSheet.to(panelSheet.snap === 0 ? 1 : 0));
+  $("#search").addEventListener("focus", () => { if (isMobile()) panelSheet.to(2); });
+  $("#address").addEventListener("focus", () => { if (isMobile()) panelSheet.to(2); });
+  // тап по пустой карте на телефоне — свернуть список, чтобы карта была видна
+  map.on("click", () => { if (isMobile() && !state.venue && panelSheet.snap > 0) { $("#search").blur(); panelSheet.to(0); } });
   window.addEventListener("hashchange", () => {
     const id = location.hash.match(/venue=([\w-]+)/)?.[1];
     if (id && byId[id] && state.venue?.id !== id) selectVenue(byId[id]);

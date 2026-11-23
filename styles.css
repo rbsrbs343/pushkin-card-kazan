@@ -213,7 +213,8 @@ body.venue-open .map-ctrl { right: 480px; }
 /* ---------- Modal ---------- */
 .modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; pointer-events: none; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(8,8,8,.62); opacity: 0; transition: opacity .3s; }
-.modal-card { position: relative; width: min(780px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; border-radius: 18px; background: var(--surface-solid); transform: translateY(20px); opacity: 0; transition: transform .5s var(--ease), opacity .35s; }
+.modal-card { position: relative; display: flex; flex-direction: column; width: min(780px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: hidden; border-radius: 18px; background: var(--surface-solid); transform: translateY(20px); opacity: 0; transition: transform .5s var(--ease), opacity .35s; }
+#modal-content { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; flex: 1; min-height: 0; }
 .modal-card.narrow { width: min(520px, calc(100vw - 32px)); }
 .modal.open { pointer-events: auto; }
 .modal.open .modal-backdrop { opacity: 1; }
@@ -310,30 +311,6 @@ body.venue-open .map-ctrl { right: 480px; }
 .maplibregl-ctrl-attrib a { color: var(--muted) !important; }
 body.venue-open .maplibregl-ctrl-bottom-right { right: 464px; }
 
-/* ---------- Mobile ---------- */
-@media (max-width: 860px) {
-  .topbar { top: 10px; left: 10px; right: 10px; height: 52px; padding-left: 16px; }
-  .brand-title { font-size: 21px; }
-  .brand-rule, .brand-city, #btn-about { display: none; }
-  .nav-btn { padding: 0 10px; }
-  .panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 50vh; border-radius: 18px 18px 0 0; }
-  .panel.collapsed { height: 132px; }
-  .panel-handle { display: block; width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong); margin: 8px auto 0; flex: none; cursor: grab; }
-  .venue { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 80vh; border-radius: 18px 18px 0 0; transform: translateY(100%); }
-  .map-ctrl { top: 72px; bottom: auto; right: 10px; }
-  body.venue-open .map-ctrl { right: 10px; }
-  body.venue-open .maplibregl-ctrl-bottom-right { right: 0; }
-  .ev-hero { grid-template-columns: 1fr; padding: 22px; gap: 18px; }
-  .poster.lg { width: 130px; height: 184px; }
-  .poster.lg .p-title { font-size: 20px; }
-  .ev-title { font-size: 36px; }
-  .ev-body, .checkout, .passport, .about { padding: 22px; }
-  .facts { grid-template-columns: 1fr; }
-  .fact + .fact { border-left: 0; padding-left: 4px; border-top: 1px solid var(--line); }
-  .modal { place-items: end center; }
-  .modal-card, .modal-card.narrow { width: 100vw; max-height: 92vh; border-radius: 18px 18px 0 0; }
-  .slots { gap: 8px; }
-}
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 .poster.has-img::after { background: linear-gradient(to top, rgba(0,0,0,.35), transparent 40%); }
 
@@ -422,3 +399,105 @@ button, a, .marker { cursor: pointer; }
 .perk { background: var(--accent-soft); }
 .perk svg, .toast svg { color: var(--accent); }
 .stamp-chip { color: #fff; border-color: rgba(255,255,255,.5); }
+
+/* ============ Телефон ============ */
+.nav-btn .ic { display: none; }
+@media (max-width: 860px) {
+  html, body { height: 100dvh; }
+  .topbar { top: calc(8px + env(safe-area-inset-top)); left: 8px; right: 8px; height: 50px; padding: 0 4px 0 14px; border-radius: 14px; }
+  .brand-title { font-size: 20px; }
+  .brand-rule, .brand-city { display: none; }
+  .nav-btn { height: 42px; padding: 0 10px; }
+  .nav-btn .lbl { display: none; }
+  .nav-btn .ic { display: block; }
+  #btn-passport { gap: 6px; }
+
+  /* нижняя шторка со списком: высота = весь экран под шапкой, видимая часть = --vis */
+  .panel {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto;
+    height: calc(100dvh - 66px - env(safe-area-inset-top)); border-radius: 18px 18px 0 0; border-bottom: 0;
+    transform: translateY(calc(100% - var(--vis, 168px))); transition: transform .45s var(--ease), opacity .3s;
+    will-change: transform; z-index: 15;
+  }
+  .panel.away { transform: translateY(100%); opacity: 0; pointer-events: none; }
+  .panel.dragging, .venue.dragging { transition: none; }
+  .panel-handle { display: block; flex: none; height: 26px; margin: 0; position: relative; cursor: grab; touch-action: none; }
+  .panel-handle::before, .venue-grip::before { content: ""; position: absolute; left: 50%; top: 10px; width: 42px; height: 5px; margin-left: -21px; border-radius: 3px; background: var(--line-strong); }
+  .panel-head { padding: 0 12px 10px; gap: 10px; touch-action: none; }
+  .panel-head input { touch-action: manipulation; }
+  .panel-body { padding-bottom: calc(var(--hidden, 0px) + 24px + env(safe-area-inset-bottom)); }
+  .segmented button { height: 38px; font-size: 13px; }
+  .field { height: 46px; }
+  .field input { font-size: 16px; } /* без автозума на iOS */
+  .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -12px; padding: 0 12px; touch-action: pan-x; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { height: 34px; flex: none; }
+  .row { padding: 13px 8px; }
+  .group-title { padding-top: 14px; }
+
+  /* карточка площадки — своя шторка */
+  .venue {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto;
+    height: calc(100dvh - 66px - env(safe-area-inset-top)); border-radius: 18px 18px 0 0; border-bottom: 0;
+    transform: translateY(100%); transition: transform .5s var(--ease); will-change: transform;
+  }
+  .venue.open { transform: translateY(calc(100% - var(--vis, 60dvh))); }
+  .venue-grip { position: absolute; top: 0; left: 0; right: 0; height: 26px; z-index: 4; touch-action: none; }
+  .venue-hero { min-height: 0; padding: 30px 18px 16px; touch-action: none; }
+  .venue-name { font-size: 30px; margin-top: 6px; padding-right: 48px; }
+  .venue .close { top: 22px; right: 12px; width: 44px; height: 44px; z-index: 5; }
+  .hero-actions { margin-top: 14px; }
+  .hero-actions .btn { flex: 1; height: 44px; }
+  .venue-tabs { padding: 10px 12px; }
+  .venue-body { padding: 4px 14px calc(var(--hidden, 0px) + 24px + env(safe-area-inset-bottom)); }
+  .card { gap: 12px; }
+  .poster.sm { width: 68px; height: 96px; }
+  .card-title { font-size: 20px; }
+  .time { height: 48px; min-width: 66px; }
+
+  /* кнопки карты справа под шапкой */
+  .map-ctrl { top: calc(66px + env(safe-area-inset-top)); bottom: auto; right: 8px; }
+  body.venue-open .map-ctrl { right: 8px; }
+  .map-ctrl button { width: 42px; height: 42px; }
+  .maplibregl-ctrl-bottom-right { display: none; }
+  .marker-pin { height: 34px; }
+
+  /* окна — на весь экран, кнопка «Закрыть» всегда на месте */
+  .modal { place-items: stretch; }
+  .modal-card, .modal-card.narrow { width: 100vw; height: 100dvh; max-height: none; border-radius: 0; border: 0; transform: translateY(40px); }
+  .modal-card > .close { top: calc(10px + env(safe-area-inset-top)); right: 10px; width: 44px; height: 44px; background: var(--surface-solid); box-shadow: var(--shadow); z-index: 10; }
+  #modal-content { padding-bottom: env(safe-area-inset-bottom); }
+  .ev-hero { grid-template-columns: 96px 1fr; padding: calc(64px + env(safe-area-inset-top)) 18px 20px; gap: 16px; align-items: end; }
+  .poster.lg { width: 96px; height: 136px; }
+  .ev-info { gap: 10px; }
+  .ev-title { font-size: 30px; }
+  .ev-meta { gap: 8px; font-size: 10px; }
+  .score b { font-size: 34px; }
+  .ev-actions { grid-column: 1 / -1; }
+  .ev-actions .btn { flex: 1; height: 48px; }
+  .ev-body { padding: 20px 18px 28px; }
+  .ev-body p { font-size: 19px; }
+  .where-row .times { width: 100%; }
+  .checkout, .passport, .about { padding: calc(64px + env(safe-area-inset-top)) 18px 28px; }
+  .checkout h2, .about h2, .passport h2 { font-size: 30px; }
+  .ticket { grid-template-columns: 1fr; }
+  .ticket-side { border-left: 0; border-top: 1px dashed var(--line-strong); text-align: left; flex-direction: row; justify-content: flex-start; align-items: baseline; gap: 10px; }
+  .facts { grid-template-columns: 1fr; }
+  .fact + .fact { border-left: 0; padding-left: 4px; border-top: 1px solid var(--line); }
+  .slots { gap: 6px; }
+  .toast { bottom: calc(20px + env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); }
+}
+/* на тач-экранах не оставляем «залипший» hover */
+@media (hover: none) {
+  .marker:hover .marker-pin { background: var(--surface-solid); color: var(--text); border-color: var(--line-strong); transform: translateX(-50%); }
+  .marker:hover .marker-pin i { color: var(--text); }
+  .marker:hover .marker-pin span { max-width: 0; }
+  .marker.active .marker-pin span, .map-zoomed .marker-pin span { max-width: 220px; }
+  .marker.active .marker-pin { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .marker.active .marker-pin i { color: #fff; }
+  .close:hover { transform: none; }
+  .time:hover { background: var(--surface-solid); border-color: var(--line); color: inherit; }
+  .time:hover small { color: var(--muted); }
+  .time:active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .row:active { background: var(--accent-soft); }
+}
