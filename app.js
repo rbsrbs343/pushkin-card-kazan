@@ -11,7 +11,11 @@
   const STYLES = {
     light: "https://tiles.openfreemap.org/styles/positron",
     dark: "https://tiles.openfreemap.org/styles/dark",
+    real: "https://tiles.openfreemap.org/styles/liberty",
   };
+  // Режимы карты: схема (монохром), город (реалистичные цвета), спутник
+  const MAP_MODES = { scheme: "Схема", real: "Город", sat: "Спутник" };
+  const styleFor = () => (state.mapMode === "scheme" ? STYLES[state.theme] : STYLES.real);
   const STAMPS_GOAL = 5;
 
   // Зона, где есть площадки: рамка вокруг всех мест с отступом.
@@ -41,6 +45,7 @@
     theme: store.get("pk-theme", null) || "dark",
     orbit: null, me: null, hover: null,
     stamps: store.get("pk-stamps", []),
+    mapMode: store.get("pk-mapmode", "real"),
   };
   document.documentElement.dataset.theme = state.theme;
 
@@ -88,7 +93,7 @@
   // ---------- Карта (только зона с площадками) ----------
   const map = new maplibregl.Map({
     container: "map",
-    style: STYLES[state.theme],
+    style: styleFor(),
     center: CENTER, zoom: 11.8, pitch: 0, bearing: 0,
     minZoom: isMobile() ? 10.6 : 11.6, maxZoom: 18.5, maxPitch: 72,
     antialias: true,
@@ -188,47 +193,84 @@
     features: !state.me ? [] : nearestVenues().slice(0, 3).map(({ v }) => ({ type: "Feature", properties: { color: CATS[v.type].color }, geometry: { type: "LineString", coordinates: [state.me.coords, v.coords] } })),
   });
 
+  // Солнце по текущему времени: тени и свет на 3D-зданиях выглядят естественно
+  function sunLight() {
+    const h = new Date().getHours() + new Date().getMinutes() / 60;
+    const az = (180 + (h - 12) * 15 + 360) % 360;
+    const polar = Math.min(80, Math.max(25, 30 + Math.abs(h - 13) * 6));
+    return { anchor: "map", color: "#fff4e0", intensity: 0.42, position: [1.4, az, polar] };
+  }
+
+  function addMaskOnly() {
+    const dark = state.theme === "dark";
+    const firstSymbol = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
+    if (map.getLayer("pk-mask")) map.removeLayer("pk-mask");
+    map.addLayer({ id: "pk-mask", type: "fill", source: "pk-mask", paint: { "fill-color": dark ? "#1f1f21" : "#f3f3f1", "fill-opacity": state.mapMode === "scheme" ? 0.88 : 0.72 } }, firstSymbol);
+  }
+
   function addLayers() {
     const style = map.getStyle();
     const firstSymbol = style.layers.find((l) => l.type === "symbol")?.id;
-    const dark = state.theme === "dark";
+    const mode = state.mapMode;
+    const dark = state.theme === "dark" && mode === "scheme";
     srcName = Object.keys(style.sources).find((k) => style.sources[k].type === "vector") || "openmaptiles";
+
+    if (mode === "sat") {
+      map.addSource("pk-sat", {
+        type: "raster", tileSize: 256, maxzoom: 19,
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        attribution: "Снимки © Esri, Maxar, Earthstar Geographics",
+      });
+      map.addLayer({ id: "pk-sat", type: "raster", source: "pk-sat", paint: { "raster-saturation": -0.15, "raster-contrast": 0.08 } }, style.layers[1]?.id);
+    }
+
     style.layers.forEach((l) => {
-      if (dark && l.type === "background") map.setPaintProperty(l.id, "background-color", "#232325");
-      if (dark && l.type === "fill" && /water/i.test(l.id)) map.setPaintProperty(l.id, "fill-color", "#1a1a1c");
-      if (l["source-layer"] === "building" || l.type === "fill-extrusion") map.setLayoutProperty(l.id, "visibility", "none");
-      // убираем лишний шум: POI-иконки и мелкие подписи
-      if (l.type === "symbol" && /poi|transit|airport|housenumber/i.test(l.id)) map.setLayoutProperty(l.id, "visibility", "none");
+      const id = l.id;
+      if (dark && l.type === "background") map.setPaintProperty(id, "background-color", "#232325");
+      if (dark && l.type === "fill" && /water/i.test(id)) map.setPaintProperty(id, "fill-color", "#1a1a1c");
+      if (l["source-layer"] === "building" || l.type === "fill-extrusion") map.setLayoutProperty(id, "visibility", "none");
+      if (l.type === "symbol" && /poi|transit|airport|housenumber|aerialway|highway-shield|road_shield/i.test(id)) map.setLayoutProperty(id, "visibility", "none");
+      // на спутнике оставляем только снимок и подписи
+      if (mode === "sat" && l.type !== "symbol" && l.type !== "background" && id !== "pk-sat") map.setLayoutProperty(id, "visibility", "none");
+      // подписи — по-русски
+      if (l.type === "symbol" && l.layout && l.layout["text-field"]) {
+        try { map.setLayoutProperty(id, "text-field", ["coalesce", ["get", "name:ru"], ["get", "name"]]); } catch (_) {}
+        if (mode === "sat") { try { map.setPaintProperty(id, "text-color", "#ffffff"); map.setPaintProperty(id, "text-halo-color", "rgba(0,0,0,.75)"); } catch (_) {} }
+      }
     });
 
-    map.addLayer({
-      id: "pk-buildings", type: "fill-extrusion", source: srcName, "source-layer": "building", minzoom: 12.5,
-      paint: {
-        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8],
-          0, dark ? "#2c2c2f" : "#e8e8e6", 40, dark ? "#333336" : "#dededb", 120, dark ? "#3b3b3f" : "#d3d3d0"],
-        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13.6, ["coalesce", ["get", "render_height"], 8]],
-        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-        "fill-extrusion-opacity": 0.94,
-        "fill-extrusion-vertical-gradient": true,
-      },
-    }, firstSymbol);
+    if (mode !== "sat") {
+      const real = mode === "real";
+      map.addLayer({
+        id: "pk-buildings", type: "fill-extrusion", source: srcName, "source-layer": "building", minzoom: 12.5,
+        filter: ["!=", ["get", "hide_3d"], true],
+        paint: {
+          "fill-extrusion-color": real
+            ? ["coalesce", ["get", "colour"], ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8], 0, "#ece4d8", 20, "#e2d9cb", 60, "#d6d0c8", 140, "#c8cdd3"]]
+            : ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8], 0, dark ? "#2c2c2f" : "#e8e8e6", 40, dark ? "#333336" : "#dededb", 120, dark ? "#3b3b3f" : "#d3d3d0"],
+          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13.6, ["coalesce", ["get", "render_height"], 8]],
+          "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+          "fill-extrusion-opacity": real ? 1 : 0.94,
+          "fill-extrusion-vertical-gradient": true,
+        },
+      }, firstSymbol);
+    }
 
     map.addSource("pk-route", { type: "geojson", data: routeData() });
-    map.addLayer({ id: "pk-route", type: "line", source: "pk-route", paint: { "line-color": dark ? "#ebebea" : "#1d1d1f", "line-width": 1.2, "line-dasharray": [2, 2] } }, "pk-buildings");
+    map.addLayer({ id: "pk-route", type: "line", source: "pk-route", paint: { "line-color": mode === "sat" ? "#ffffff" : dark ? "#ebebea" : "#1d1d1f", "line-width": 1.6, "line-dasharray": [2, 2] } }, firstSymbol);
 
-    // Маска вне зоны + рамка
     map.addSource("pk-mask", { type: "geojson", data: maskData });
-    map.addLayer({ id: "pk-mask", type: "fill", source: "pk-mask", paint: { "fill-color": dark ? "#1f1f21" : "#f3f3f1", "fill-opacity": 0.88 } }, firstSymbol);
+    addMaskOnly();
     map.addSource("pk-frame", { type: "geojson", data: frameData });
-    map.addLayer({ id: "pk-frame", type: "line", source: "pk-frame", paint: { "line-color": dark ? "#ebebea" : "#1d1d1f", "line-width": 1, "line-opacity": 0.3 } });
+    map.addLayer({ id: "pk-frame", type: "line", source: "pk-frame", paint: { "line-color": mode === "sat" ? "#ffffff" : dark ? "#ebebea" : "#1d1d1f", "line-width": 1, "line-opacity": 0.35 } });
 
+    try { map.setLight(sunLight()); } catch (_) {}
     try {
-      map.setSky?.({
-        "sky-color": dark ? "#1f1f21" : "#f3f3f1", "horizon-color": dark ? "#1f1f21" : "#f3f3f1",
-        "fog-color": dark ? "#1f1f21" : "#f3f3f1", "sky-horizon-blend": 0.2, "horizon-fog-blend": 0.1, "fog-ground-blend": 1,
-      });
+      const sky = mode === "scheme"
+        ? { c: dark ? "#1f1f21" : "#f3f3f1", h: dark ? "#1f1f21" : "#f3f3f1", f: dark ? "#1f1f21" : "#f3f3f1" }
+        : { c: "#9fbedb", h: "#e9eef2", f: "#e9eef2" };
+      map.setSky?.({ "sky-color": sky.c, "horizon-color": sky.h, "fog-color": sky.f, "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.4, "fog-ground-blend": 0.85 });
     } catch (_) {}
-    Object.keys(footprints).forEach((k) => delete footprints[k]);
   }
 
   function refreshMapData() {
@@ -798,8 +840,19 @@
     state.theme = state.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = state.theme;
     store.set("pk-theme", state.theme);
-    map.setStyle(STYLES[state.theme], { diff: false });
+    if (state.mapMode === "scheme") map.setStyle(styleFor(), { diff: false });
+    else { map.removeLayer?.("pk-mask"); addMaskOnly(); }
   });
+  // переключатель режима карты
+  function renderMapMode() {
+    $("#map-mode").innerHTML = Object.entries(MAP_MODES).map(([k, l]) => `<button data-mm="${k}" class="${state.mapMode === k ? "on" : ""}">${l}</button>`).join("");
+  }
+  $("#map-mode").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-mm]"); if (!b || b.dataset.mm === state.mapMode) return;
+    state.mapMode = b.dataset.mm; store.set("pk-mapmode", state.mapMode); renderMapMode();
+    map.setStyle(styleFor(), { diff: false });
+  });
+  renderMapMode();
   $("#ctrl-tilt").addEventListener("click", (e) => {
     const flat = map.getPitch() > 10;
     stopOrbit(); map.easeTo({ pitch: flat ? 0 : 60, duration: 900 });
