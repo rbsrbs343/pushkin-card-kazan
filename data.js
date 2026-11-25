@@ -13,10 +13,10 @@
  */
 
 window.CATEGORIES = {
-  cinema:  { label: "Кино",     color: "#8b8b8f" },
-  theatre: { label: "Театр",    color: "#8b8b8f" },
-  museum:  { label: "Музеи",    color: "#8b8b8f" },
-  concert: { label: "Концерты", color: "#8b8b8f" },
+  cinema:  { label: "Кино",     color: "#e0613f" },
+  theatre: { label: "Театр",    color: "#b4508a" },
+  museum:  { label: "Музеи",    color: "#2f9e83" },
+  concert: { label: "Концерты", color: "#d39a1f" },
 };
 
 // ---------- События ----------
@@ -43,7 +43,7 @@ window.EVENTS = {
   "f-smesh": {
     type: "cinema", title: "Смешарики сквозь вселенные", genre: "Анимация", age: "6+", duration: 92,
     rating: 7.6, votes: 12100, year: 2026,
-    description: "Любимые герои отправляются в путешествие по параллельным мирам — яркий семейный мультфильм.",
+    description: "Любимые герои отправляются в путешествие по параллельным мирам. Мультфильм для всей семьи.",
     trailer: null, palette: ["#0e7490", "#facc15"],
   },
   "f-dedmobile": {
@@ -55,7 +55,7 @@ window.EVENTS = {
   "f-saints": {
     type: "cinema", title: "Святые предприниматели", genre: "Комедия", age: "16+", duration: 101,
     rating: 6.6, votes: 3900, year: 2026,
-    description: "Компания друзей запускает необычный бизнес — и быстро понимает, что благие намерения не всегда окупаются.",
+    description: "Компания друзей запускает необычный бизнес и быстро понимает, что благие намерения не всегда окупаются.",
     trailer: null, palette: ["#4a044e", "#e879f9"],
   },
   "f-tale": {
@@ -75,7 +75,7 @@ window.EVENTS = {
   "t-revizor": {
     type: "theatre", title: "Ревизор", genre: "Комедия · Н. В. Гоголь", age: "12+", duration: 170,
     rating: 8.8, votes: 910,
-    description: "Уездный город принимает Хлестакова за ревизора. Самая узнаваемая русская комедия — живо и смешно.",
+    description: "Уездный город принимает Хлестакова за ревизора. Самая известная русская комедия.",
     trailer: null, palette: ["#292524", "#d97706"],
   },
   "t-zhenitba": {
@@ -111,19 +111,19 @@ window.EVENTS = {
   "t-nutcracker": {
     type: "theatre", title: "Щелкунчик", genre: "Балет · П. И. Чайковский", age: "0+", duration: 130,
     rating: 9.1, votes: 2100,
-    description: "Главный зимний балет страны — волшебство, снег и музыка Чайковского.",
+    description: "Зимний балет на музыку Чайковского, который стоит увидеть хотя бы раз.",
     trailer: null, palette: ["#172554", "#93c5fd"],
   },
   "t-shal": {
     type: "theatre", title: "Голубая шаль (Зәңгәр шәл)", genre: "Музыкальная драма · К. Тинчурин", age: "12+", duration: 150,
     rating: 8.7, votes: 380,
-    description: "Классика татарского театра — история любви Булата и Мэгъвии. Синхронный перевод.",
+    description: "Классика татарского театра, история любви Булата и Мэгъвии. Синхронный перевод.",
     trailer: null, palette: ["#082f49", "#38bdf8"],
   },
   "t-romeo": {
     type: "theatre", title: "Ромео и Джульетта", genre: "Трагедия · У. Шекспир", age: "14+", duration: 140,
     rating: 8.3, votes: 350,
-    description: "Шекспир для нового поколения — энергично, честно и про главное.",
+    description: "Шекспир в постановке для молодых зрителей.",
     trailer: null, palette: ["#450a0a", "#f87171"],
   },
   "t-puppet": {
@@ -137,7 +137,7 @@ window.EVENTS = {
   "m-kremlin": {
     type: "museum", title: "Экскурсия по Казанскому Кремлю", genre: "Экскурсия", age: "0+", duration: 90,
     rating: 9.2, votes: 3100,
-    description: "Башня Сююмбике, Благовещенский собор, мечеть Кул Шариф — объект Всемирного наследия ЮНЕСКО.",
+    description: "Башня Сююмбике, Благовещенский собор, мечеть Кул Шариф. Кремль входит в список наследия ЮНЕСКО.",
     trailer: null, palette: ["#0f172a", "#e2e8f0"],
   },
   "m-gmii": {

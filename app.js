@@ -67,7 +67,7 @@
   // Если у события есть поле image (URL постера/фото) — показываем его, иначе фирменную обложку.
   const poster = (ev, size = "sm") => ev.image
     ? `<div class="poster ${size} has-img" style="background:#111 url('${encodeURI(ev.image)}') center/cover"></div>`
-    : `<div class="poster ${size}" style="background:${gradient(ev.palette)}"></div>`;
+    : `<div class="poster cat-poster ${size}" style="--c:${CATS[ev.type].color}">${icon(ev.type, 40)}</div>`;
   const ico = (t) => `<span class="ico" style="--c:${CATS[t].color}">${icon(t)}</span>`;
 
   function haversine([lng1, lat1], [lng2, lat2]) {
@@ -205,7 +205,7 @@
     const dark = state.theme === "dark";
     const firstSymbol = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
     if (map.getLayer("pk-mask")) map.removeLayer("pk-mask");
-    map.addLayer({ id: "pk-mask", type: "fill", source: "pk-mask", paint: { "fill-color": dark ? "#1f1f21" : "#f3f3f1", "fill-opacity": state.mapMode === "scheme" ? 0.88 : 0.72 } }, firstSymbol);
+    map.addLayer({ id: "pk-mask", type: "fill", source: "pk-mask", paint: { "fill-color": dark ? "#0f1626" : "#ebe2d0", "fill-opacity": state.mapMode === "scheme" ? 0.88 : 0.72 } }, firstSymbol);
   }
 
   function addLayers() {
@@ -226,8 +226,10 @@
 
     style.layers.forEach((l) => {
       const id = l.id;
-      if (dark && l.type === "background") map.setPaintProperty(id, "background-color", "#232325");
-      if (dark && l.type === "fill" && /water/i.test(id)) map.setPaintProperty(id, "fill-color", "#1a1a1c");
+      if (dark && l.type === "background") map.setPaintProperty(id, "background-color", "#131c2f");
+      if (dark && l.type === "fill" && /water/i.test(id)) map.setPaintProperty(id, "fill-color", "#0b1120");
+      if (!dark && mode === "scheme" && l.type === "background") map.setPaintProperty(id, "background-color", "#efe7d8");
+      if (!dark && mode === "scheme" && l.type === "fill" && /water/i.test(id)) map.setPaintProperty(id, "fill-color", "#c9d6d6");
       if (l["source-layer"] === "building" || l.type === "fill-extrusion") map.setLayoutProperty(id, "visibility", "none");
       if (l.type === "symbol" && /poi|transit|airport|housenumber|aerialway|highway-shield|road_shield/i.test(id)) map.setLayoutProperty(id, "visibility", "none");
       // на спутнике оставляем только снимок и подписи
@@ -247,7 +249,7 @@
         paint: {
           "fill-extrusion-color": real
             ? ["coalesce", ["get", "colour"], ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8], 0, "#ece4d8", 20, "#e2d9cb", 60, "#d6d0c8", 140, "#c8cdd3"]]
-            : ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8], 0, dark ? "#2c2c2f" : "#e8e8e6", 40, dark ? "#333336" : "#dededb", 120, dark ? "#3b3b3f" : "#d3d3d0"],
+            : ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8], 0, dark ? "#1d2840" : "#e6dccb", 40, dark ? "#24304b" : "#ddd2bf", 120, dark ? "#2c3956" : "#d2c6b1"],
           "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 12.5, 0, 13.6, ["coalesce", ["get", "render_height"], 8]],
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
           "fill-extrusion-opacity": real ? 1 : 0.94,
@@ -257,17 +259,17 @@
     }
 
     map.addSource("pk-route", { type: "geojson", data: routeData() });
-    map.addLayer({ id: "pk-route", type: "line", source: "pk-route", paint: { "line-color": mode === "sat" ? "#ffffff" : dark ? "#ebebea" : "#1d1d1f", "line-width": 1.6, "line-dasharray": [2, 2] } }, firstSymbol);
+    map.addLayer({ id: "pk-route", type: "line", source: "pk-route", paint: { "line-color": mode === "sat" ? "#ffffff" : dark ? "#f3ecdf" : "#2a2118", "line-width": 1.6, "line-dasharray": [2, 2] } }, firstSymbol);
 
     map.addSource("pk-mask", { type: "geojson", data: maskData });
     addMaskOnly();
     map.addSource("pk-frame", { type: "geojson", data: frameData });
-    map.addLayer({ id: "pk-frame", type: "line", source: "pk-frame", paint: { "line-color": mode === "sat" ? "#ffffff" : dark ? "#ebebea" : "#1d1d1f", "line-width": 1, "line-opacity": 0.35 } });
+    map.addLayer({ id: "pk-frame", type: "line", source: "pk-frame", paint: { "line-color": mode === "sat" ? "#ffffff" : dark ? "#f3ecdf" : "#2a2118", "line-width": 1, "line-opacity": 0.35 } });
 
     try { map.setLight(sunLight()); } catch (_) {}
     try {
       const sky = mode === "scheme"
-        ? { c: dark ? "#1f1f21" : "#f3f3f1", h: dark ? "#1f1f21" : "#f3f3f1", f: dark ? "#1f1f21" : "#f3f3f1" }
+        ? { c: dark ? "#0f1626" : "#ebe2d0", h: dark ? "#0f1626" : "#ebe2d0", f: dark ? "#0f1626" : "#ebe2d0" }
         : { c: "#9fbedb", h: "#e9eef2", f: "#e9eef2" };
       map.setSky?.({ "sky-color": sky.c, "horizon-color": sky.h, "fog-color": sky.f, "sky-horizon-blend": 0.5, "horizon-fog-blend": 0.4, "fog-ground-blend": 0.85 });
     } catch (_) {}
@@ -296,7 +298,8 @@
     const el = document.createElement("div");
     el.className = "marker";
     el.style.setProperty("--c", CATS[v.type].color);
-    el.innerHTML = `<div class="marker-dot"></div><div class="marker-pin"><i>${icon(v.type, 15)}</i><span>${esc(v.type === "cinema" ? v.place : v.name)}</span></div>`;
+    const today = v.events.reduce((n, id) => n + v.sessions[id].filter((s) => sameDay(s.date, new Date()) && s.date > new Date()).length, 0);
+    el.innerHTML = `<div class="marker-dot"></div><div class="marker-pin"><i>${icon(v.type, 15)}</i><span>${esc(v.type === "cinema" ? v.place : v.name)}</span>${today ? `<em title="Сеансов сегодня">${today}</em>` : ""}</div>`;
     el.addEventListener("click", (e) => { e.stopPropagation(); selectVenue(v); });
     markers[v.id] = { el, m: new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(v.coords).addTo(map) };
   });
@@ -426,7 +429,7 @@
 
     if (state.mode === "near") {
       if (!state.me) {
-        list.innerHTML = `<div class="empty"><span class="serif">Что рядом с вами</span>Введите адрес или определите местоположение — покажем ближайшие кино, театры и музеи, где принимают Пушкинскую карту.</div>`;
+        list.innerHTML = `<div class="empty"><span class="serif">Что рядом с вами</span>Напишите адрес или нажмите «Определить моё местоположение». Покажем, куда ближе всего идти.</div>`;
         return;
       }
       list.innerHTML = `<div class="group-title">Ближайшие<small>${esc(state.me.label)}</small></div>` + nearestVenues().map(({ v, km }) => {
@@ -528,7 +531,7 @@
     toast("Определяем местоположение…");
     navigator.geolocation.getCurrentPosition(
       (pos) => setMe([pos.coords.longitude, pos.coords.latitude], "Моё местоположение"),
-      () => toast("Не удалось определить местоположение — введите адрес"),
+      () => toast("Не получилось определить, где вы. Напишите адрес"),
       { enableHighAccuracy: true, timeout: 8000 },
     );
   });
@@ -549,7 +552,10 @@
   // ---------- Площадка ----------
   function selectVenue(v) {
     if (!v) return;
-    state.venue = v; state.day = 0;
+    state.venue = v;
+    // открываем первый день, где ещё есть сеансы
+    const now = new Date();
+    state.day = Math.max(0, [...Array(7).keys()].find((i) => v.events.some((id) => v.sessions[id].some((x) => sameDay(x.date, dayDate(i)) && x.date > now))) ?? 0);
     history.replaceState(null, "", `#venue=${v.id}`);
     renderVenue();
     $("#venue").classList.add("open"); $("#venue").setAttribute("aria-hidden", "false");
@@ -575,8 +581,10 @@
     const v = state.venue, cat = CATS[v.type];
     const route = `https://yandex.ru/maps/?rtext=${state.me ? state.me.coords[1] + "," + state.me.coords[0] : ""}~${v.coords[1]},${v.coords[0]}&rtt=mt`;
     const km = state.me ? haversine(state.me.coords, v.coords) : null;
-    $("#venue-hero").style.setProperty("--hero", heroFor(v.type));
-    $("#venue-hero").innerHTML = `
+    $("#venue-hero").style.setProperty("--hero", `linear-gradient(115deg, #121a2c 38%, ${cat.color}66 130%)`);
+    const collage = v.events.slice(0, 3).map((id, i) => `<div class="collage-card" style="--c:${cat.color};--i:${i}">${icon(v.type, 30)}</div>`).join("");
+    $("#venue-hero").innerHTML = `<div class="collage">${collage}</div>`;
+    $("#venue-hero").innerHTML += `
       <div class="kicker">${cat.label} · ${esc(v.place)}</div>
       <div class="venue-name">${esc(v.name)}</div>
       <div class="venue-addr">${esc(v.address)}${km != null ? ` · ${fmtDist(km)} от вас` : ""}</div>
@@ -607,12 +615,11 @@
     const v = state.venue, d = dayDate(state.day), now = new Date();
     const items = v.events.map((id) => [id, EVENTS[id], v.sessions[id].filter((s) => sameDay(s.date, d) && s.date > now)]).sort((a, b) => b[2].length - a[2].length);
     $("#venue-body").innerHTML = items.map(([id, ev, ss], i) => `
-      <div class="card" style="animation-delay:${i * 45}ms">
-        <div data-event="${id}" style="cursor:pointer">${poster(ev)}</div>
-        <div class="card-main">
-          <span class="pk">Пушкинская карта</span>
+      <div class="tkt" style="animation-delay:${i * 45}ms;--c:${CATS[ev.type].color}">
+        <div class="tkt-stub" data-event="${id}">${icon(ev.type, 26)}<b>${ev.age}</b><small>${dur(ev.duration)}</small></div>
+        <div class="tkt-main">
           <div class="card-title" data-event="${id}">${esc(ev.title)}</div>
-          <div class="card-meta"><span class="score-inline">${STAR}${ev.rating.toFixed(1)}</span><span>${esc(ev.genre)}</span><span>${ev.age}</span><span>${dur(ev.duration)}</span></div>
+          <div class="card-meta"><span class="score-inline">${STAR}${ev.rating.toFixed(1)}</span><span>${esc(ev.genre)}</span></div>
           ${ss.length ? `<div class="times">${ss.slice(0, 6).map((s) => timeBtn(v, id, s)).join("")}</div>` : `<div class="no-times">Нет сеансов в этот день</div>`}
         </div>
       </div>`).join("");
@@ -635,10 +642,10 @@
     const prices = places.flatMap((v) => upcoming(v, id).map((s) => s.price));
 
     $("#modal-content").innerHTML = `
-      <div class="ev-hero" style="--hero:#2b2b2e">
+      <div class="ev-hero" style="--hero:linear-gradient(115deg, ${CATS[ev.type].color} 0%, ${CATS[ev.type].color}66 35%, #121a2c 78%)">
         ${poster(ev, "lg")}
         <div class="ev-info">
-          <span class="pk" style="color:#f2f2f0;opacity:.8">Можно оплатить Пушкинской картой</span>
+          <span class="ev-pk">Принимается Пушкинская карта</span>
           <h2 class="ev-title">${esc(ev.title)}</h2>
           <div class="ev-meta"><span>${CATS[ev.type].label}</span><span>${esc(ev.genre)}</span><span>${ev.age}</span><span>${dur(ev.duration)}</span></div>
           <div class="score"><b>${ev.rating.toFixed(1)}</b>
@@ -661,7 +668,7 @@
               <div class="times">${upcoming(v, id).slice(0, 4).map((s) => timeBtn(v, id, s, true)).join("")}</div>
             </div>`).join("")}
         </div>
-        <p class="note">Рейтинг, сеансы и цены — демонстрационные. Наличие оплаты Пушкинской картой уточняйте при покупке.</p>
+        <p class="note">Рейтинг, сеансы и цены пока примерные. Оплату Пушкинской картой уточняйте при покупке.</p>
       </div>`;
     openModal();
   }
@@ -701,7 +708,7 @@
         <div class="qty"><span>Количество билетов</span>
           <div class="qty-ctrl"><button data-action="minus">−</button><span id="co-qty">1</span><button data-action="plus">+</button></div></div>
         <div class="perk">${SEAL()}<div>${fresh
-          ? `За покупку вы получите <b>штамп «${esc(v.name)}»</b> в культурный паспорт. ${left ? `До участия в розыгрыше — ещё ${left} ${plural(left, "место", "места", "мест")}.` : "Это пятое место — вы станете участником розыгрыша!"}`
+          ? `За покупку вы получите <b>штамп «${esc(v.name)}»</b> в культурный паспорт. ${left ? `До розыгрыша осталось ${left} ${plural(left, "место", "места", "мест")}.` : "Это пятое место, после покупки вы участвуете в розыгрыше."}`
           : "Штамп этого места уже есть в паспорте. Чтобы приблизиться к розыгрышу, выберите новое место."}</div></div>
         <button class="btn gold block" data-action="pay">Оплатить Пушкинской картой</button>
         <p class="note">Демо-режим: деньги не списываются. В рабочей версии здесь будет платёжный виджет билетного оператора, а штамп начисляется после подтверждения покупки.</p>
@@ -770,13 +777,13 @@
         <div class="slots">${slots}</div>
         ${n > STAMPS_GOAL ? `<div><div class="label">Ещё штампы</div><div class="extra-stamps">${venues.slice(STAMPS_GOAL).map((id) => `<span>${esc(byId[id].name)}</span>`).join("")}</div></div>` : ""}
         ${done
-          ? `<div class="draw"><span class="pk">Вы в розыгрыше</span><b>Пять мест собрано</b><span class="note" style="color:inherit">Ваш номер участника:</span><code>${code}</code><span class="note">Итоги — в последний день месяца.</span></div>`
-          : `<p class="note" style="font-size:13.5px">Ещё ${STAMPS_GOAL - n} ${plural(STAMPS_GOAL - n, "место", "места", "мест")} — и вы участвуете в ежемесячном розыгрыше призов от партнёров.</p>`}
+          ? `<div class="draw"><span class="pk">Вы в розыгрыше</span><b>Пять мест собрано</b><span class="note" style="color:inherit">Ваш номер участника:</span><code>${code}</code><span class="note">Итоги подводим в последний день месяца.</span></div>`
+          : `<p class="note" style="font-size:13.5px">Осталось ${STAMPS_GOAL - n} ${plural(STAMPS_GOAL - n, "место", "места", "мест")}, и вы участвуете в розыгрыше. Он проходит каждый месяц.</p>`}
         <div><div class="label">Как это работает</div>
           <ol class="rules">
             <li>Покупайте билеты по Пушкинской карте через этот сайт.</li>
-            <li>За каждое новое место — кинотеатр, театр, музей или концертный зал — в паспорт ставится штамп.</li>
-            <li>Пять штампов из разных мест — участие в розыгрыше. Места со штампом отмечаются на карте.</li>
+            <li>За каждое новое место (кинотеатр, театр, музей, концертный зал) в паспорт ставится штамп.</li>
+            <li>Пять штампов из разных мест, и вы в розыгрыше. Места со штампом видно на карте.</li>
           </ol></div>
         <div class="ev-actions">
           ${n ? `<button class="btn line" data-action="reset">Очистить (демо)</button>` : `<button class="btn gold" data-close>Выбрать место на карте</button>`}
@@ -829,7 +836,7 @@
           <li>Выберите событие на карте Казани и нажмите «Купить билет».</li>
           <li>В кино картой можно оплатить только фильмы с отметкой программы.</li>
         </ol></div>
-        <p class="note">Площадки собраны из открытых источников; рейтинги, сеансы и цены на сайте — демонстрационные.</p>
+        <p class="note">Адреса площадок взяты из открытых источников. Рейтинги, сеансы и цены пока примерные.</p>
         <a class="btn gold" style="width:fit-content" href="https://www.culture.ru/pushkinskaya-karta" target="_blank" rel="noopener">Подробнее на culture.ru</a>
       </div>`;
     openModal(true);
@@ -871,6 +878,63 @@
     const id = location.hash.match(/venue=([\w-]+)/)?.[1];
     if (id && byId[id] && state.venue?.id !== id) selectVenue(byId[id]);
   });
+
+  // ---------- Приветствие по времени суток ----------
+  (function greet() {
+    const h = new Date().getHours();
+    const hi = h < 5 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер";
+    const ask = h < 12 ? "В музей с утра?" : h < 18 ? "Куда пойдём после пар?" : "Кино или театр сегодня?";
+    $("#panel-head").insertAdjacentHTML("afterbegin", `<div class="greet">${hi}!<small>${ask}</small></div>`);
+  })();
+
+  // ---------- Заставка ----------
+  (function intro() {
+    const now = new Date();
+    const all = VENUES.flatMap((v) => v.events.flatMap((id) => v.sessions[id].filter((x) => sameDay(x.date, now) && x.date > now)));
+    const minP = Math.min(...VENUES.flatMap((v) => v.events.flatMap((id) => upcoming(v, id).map((x) => x.price))));
+    $("#intro-stats").innerHTML = all.length
+      ? `Сегодня ещё <b>${all.length} ${plural(all.length, "сеанс", "сеанса", "сеансов")}</b> на ${VENUES.length} площадках. Билеты от <b>${minP} ₽</b>.`
+      : `${VENUES.length} площадок по всему центру. Билеты от <b>${minP} ₽</b>.`;
+    $("#intro-cats").innerHTML = Object.entries(CATS).map(([k, c]) => {
+      const n = VENUES.filter((v) => v.type === k).length;
+      return `<button data-icat="${k}" style="--c:${c.color}"><i>${icon(k, 20)}</i><b>${c.label}</b><span>${n} ${plural(n, "место", "места", "мест")}</span></button>`;
+    }).join("");
+    let seen = false; try { seen = sessionStorage.getItem("pk-intro") === "1"; } catch (_) {}
+    if (seen || location.hash.includes("venue=")) return;
+    $("#intro").hidden = false;
+    document.body.classList.add("intro-on");
+    const close = (after) => {
+      try { sessionStorage.setItem("pk-intro", "1"); } catch (_) {}
+      $("#intro").classList.add("leaving");
+      document.body.classList.remove("intro-on");
+      setTimeout(() => { $("#intro").hidden = true; }, 700);
+      after?.();
+    };
+    $("#intro-go").addEventListener("click", () => close());
+    $("#intro-near").addEventListener("click", () => close(() => $('[data-mode="near"]').click()));
+    $("#intro-cats").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-icat]"); if (!b) return;
+      close(() => { state.cat = b.dataset.icat; renderAll(); });
+    });
+  })();
+
+  // ---------- Бегущая лента ближайших сеансов ----------
+  function renderTicker() {
+    const now = new Date();
+    const items = VENUES.flatMap((v) => v.events.flatMap((id) => upcoming(v, id).slice(0, 2).map((x) => ({ v, id, x }))))
+      .sort((a, b) => a.x.date - b.x.date).slice(0, 14);
+    if (!items.length) { $("#ticker").hidden = true; return; }
+    const html = items.map(({ v, id, x }) => {
+      const mins = Math.round((x.date - now) / 60000);
+      const when = sameDay(x.date, now) ? (mins < 60 ? `через ${mins} мин` : fmtTime(x.date)) : `${x.date.toLocaleDateString("ru-RU", { weekday: "short" })} ${fmtTime(x.date)}`;
+      return `<button class="tick" data-buy="${v.id}|${id}|${x.date.getTime()}" style="--c:${CATS[v.type].color}"><i></i><b>${when}</b>${esc(EVENTS[id].title)}<span>${esc(v.name)} · ${x.price} ₽</span></button>`;
+    }).join("");
+    $("#ticker-row").innerHTML = html + html; // дубль для бесшовной прокрутки
+    $("#ticker-row").style.setProperty("--dur", `${items.length * 6}s`);
+  }
+  $("#ticker").addEventListener("click", (e) => { const t = e.target.closest("[data-buy]"); if (t) openCheckout(...t.dataset.buy.split("|")); });
+  renderTicker();
+  setInterval(renderTicker, 60000);
 
   window.__map = map;
   renderAll();

@@ -513,3 +513,201 @@ body.venue-open .map-mode { right: 536px; }
   body.venue-open .map-mode { right: auto; }
   .map-mode button { height: 34px; padding: 0 10px; }
 }
+
+/* ===================== Редизайн: живее и ярче ===================== */
+/* логотип-тюльпан (татарский орнамент) */
+.brand-emblem { display: grid; place-items: center; transition: transform .5s var(--ease); }
+.brand:hover .brand-emblem { transform: rotate(-12deg) scale(1.06); }
+
+/* цвета категорий в списке и чипах */
+.ico { background: color-mix(in srgb, var(--c) 15%, transparent); color: var(--c); border-color: transparent; }
+.row:hover .ico, .row.active .ico { background: var(--c); color: #fff; border-color: var(--c); }
+.chip .dot { display: inline-block; width: 7px; height: 7px; }
+
+/* метки: цветной значок и счётчик сеансов */
+.marker-pin { padding: 0 4px; gap: 7px; }
+.marker-pin i { background: var(--c); color: #fff !important; width: 26px; height: 26px; }
+.marker:hover .marker-pin i { background: var(--c); }
+.marker-pin em { font-style: normal; font-size: 10.5px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center; background: var(--raise); color: var(--text); margin-right: 3px; font-variant-numeric: tabular-nums; }
+.marker:hover .marker-pin em { background: rgba(255,255,255,.18); color: inherit; }
+.marker.active .marker-pin { background: var(--c); border-color: var(--c); }
+.marker.active .marker-pin i { background: rgba(255,255,255,.22); }
+.marker.active .marker-pin em { background: rgba(255,255,255,.25); color: #fff; }
+.marker-dot { display: block; left: -4px; top: -4px; width: 8px; height: 8px; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 30%, transparent); }
+
+/* шапка площадки: тон категории + коллаж постеров */
+.venue-hero { min-height: 230px; border-bottom-color: var(--accent); }
+.collage { position: absolute; right: 44px; top: 30px; width: 210px; height: 190px; z-index: 0 !important; pointer-events: none; }
+.collage-card { position: absolute; top: 0; right: calc(var(--i) * 46px + 20px); width: 92px; height: 132px; border-radius: 6px; background: var(--g); box-shadow: 0 18px 30px -12px rgba(0,0,0,.7); transform: rotate(calc(8deg - var(--i) * 9deg)) translateY(calc(var(--i) * 12px)); opacity: calc(1 - var(--i) * .18); }
+.venue-hero .kicker, .venue-name, .venue-addr, .venue-meta, .hero-actions { position: relative; z-index: 1; }
+.venue-name { max-width: 70%; text-shadow: 0 2px 20px rgba(0,0,0,.5); }
+
+/* карточка события — фон в тон постера */
+.ev-hero::after { background: linear-gradient(to top, rgba(0,0,0,.35), transparent 60%); }
+
+/* ---------- Бегущая лента ---------- */
+.ticker { position: fixed; top: 86px; left: 416px; right: 16px; height: 46px; z-index: 13; display: flex; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; transition: right .7s var(--ease), opacity .4s; }
+body.venue-open .ticker { right: 480px; }
+.ticker-label { flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px; height: 100%; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: var(--accent); border-right: 1px solid var(--line); background: var(--surface-solid); position: relative; z-index: 2; }
+.ticker-label i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: live 2s ease-in-out infinite; }
+@keyframes live { 50% { opacity: .3; } }
+.ticker-track { flex: 1; overflow: hidden; height: 100%; mask: linear-gradient(90deg, transparent, #000 30px, #000 calc(100% - 30px), transparent); -webkit-mask: linear-gradient(90deg, transparent, #000 30px, #000 calc(100% - 30px), transparent); }
+.ticker-row { display: flex; height: 100%; width: max-content; animation: marquee var(--dur, 80s) linear infinite; }
+.ticker:hover .ticker-row { animation-play-state: paused; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+.tick { display: inline-flex; align-items: center; gap: 8px; padding: 0 18px; height: 100%; font-size: 13px; white-space: nowrap; border-right: 1px solid var(--line); transition: background .2s; }
+.tick:hover { background: var(--accent-soft); }
+.tick i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.tick b { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.tick span { color: var(--muted); font-size: 12px; }
+.tick:hover b { color: var(--accent); }
+
+/* ---------- Заставка ---------- */
+.intro { position: fixed; inset: 0; z-index: 45; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: end; gap: 40px; padding: 120px 56px 56px; background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 96%, transparent) 0%, color-mix(in srgb, var(--bg) 80%, transparent) 45%, color-mix(in srgb, var(--bg) 10%, transparent) 100%); transition: opacity .7s var(--ease), transform .7s var(--ease); }
+.intro.leaving { opacity: 0; transform: translateX(-30px); pointer-events: none; }
+body.intro-on .panel, body.intro-on .ticker, body.intro-on .map-mode, body.intro-on .map-ctrl { opacity: 0; pointer-events: none; }
+.panel, .map-mode, .map-ctrl { transition: opacity .6s .2s, transform .45s var(--ease), right .7s var(--ease); }
+.intro-inner > * { animation: rise .9s var(--ease) both; }
+.intro-inner > :nth-child(2) { animation-delay: .1s; } .intro-inner > :nth-child(3) { animation-delay: .2s; } .intro-inner > :nth-child(4) { animation-delay: .3s; } .intro-inner > :nth-child(5) { animation-delay: .4s; }
+.intro-kicker { display: flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: .28em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.intro-kicker i { width: 40px; height: 1px; background: var(--accent); }
+.intro-title { font-family: var(--serif); font-weight: 500; font-size: clamp(64px, 8.6vw, 140px); line-height: .88; letter-spacing: -0.035em; margin: 22px 0 30px; }
+.intro-title em { color: var(--accent); }
+.intro-stats { display: flex; gap: 0; margin-bottom: 26px; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); width: fit-content; }
+.intro-stats div { padding: 14px 28px 14px 0; margin-right: 28px; border-right: 1px solid var(--line); }
+.intro-stats div:last-child { border-right: 0; margin-right: 0; }
+.intro-stats b { display: block; font-family: var(--serif); font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+.intro-stats span { font-size: 12.5px; color: var(--muted); }
+.intro-lead { max-width: 480px; font-size: 17px; line-height: 1.55; color: var(--muted); margin: 0 0 28px; }
+.intro-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn.xl { height: 56px; padding: 0 28px; font-size: 15px; border-radius: 14px; }
+.intro-ghost { border: 1px solid var(--line-strong); }
+.intro-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.intro-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-self: end; }
+.intro-cats button { position: relative; text-align: left; padding: 22px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; transition: transform .4s var(--ease), border-color .3s; animation: rise .9s var(--ease) both; }
+.intro-cats button:nth-child(2) { animation-delay: .15s; } .intro-cats button:nth-child(3) { animation-delay: .25s; } .intro-cats button:nth-child(4) { animation-delay: .35s; }
+.intro-cats button:hover { transform: translateY(-4px); border-color: var(--c); }
+.intro-cats i { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--c); color: #fff; margin-bottom: 14px; }
+.intro-cats b { font-family: var(--serif); font-size: 30px; font-weight: 600; line-height: 1; }
+.intro-cats span { font-size: 13px; color: var(--muted); }
+.intro-cats button::after { content: "→"; position: absolute; right: 20px; top: 22px; font-size: 18px; color: var(--muted); transition: transform .3s var(--ease), color .3s; }
+.intro-cats button:hover::after { transform: translateX(4px); color: var(--c); }
+
+@media (max-width: 860px) {
+  .ticker { display: none; }
+  .intro { grid-template-columns: 1fr; padding: 90px 18px 24px; gap: 20px; overflow-y: auto; align-items: start; background: color-mix(in srgb, var(--bg) 94%, transparent); }
+  .intro-title { font-size: 60px; margin: 14px 0 20px; }
+  .intro-stats div { padding-right: 14px; margin-right: 14px; }
+  .intro-stats b { font-size: 30px; }
+  .intro-cats button { padding: 16px; }
+  .intro-cats b { font-size: 24px; }
+  .collage { display: none; }
+  .venue-name { max-width: none; }
+}
+body.intro-on .topbar { z-index: 50; }
+
+/* ===================== Меньше шаблонности ===================== */
+/* постеры одного цвета на категорию, с крупной иконкой */
+.cat-poster { background: linear-gradient(165deg, color-mix(in srgb, var(--c) 92%, #fff) 0%, var(--c) 45%, color-mix(in srgb, var(--c) 55%, #000) 100%) !important; display: grid !important; place-items: center; color: rgba(255,255,255,.55); }
+.cat-poster svg { width: 46%; height: auto; }
+.cat-poster::after { background: none !important; }
+.poster.xs.cat-poster svg { width: 60%; }
+.collage-card { background: var(--c); display: grid; place-items: center; color: rgba(255,255,255,.6); border: 1px solid rgba(255,255,255,.15); }
+
+/* без надписей капсом с разрядкой и декоративных чёрточек */
+.kicker { text-transform: none; letter-spacing: 0; font-size: 13px; opacity: .8; }
+.kicker::before { display: none; }
+.label { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.venue-meta .tag { text-transform: none; letter-spacing: 0; font-size: 12.5px; }
+.intro-kicker { text-transform: none; letter-spacing: 0; font-size: 18px; font-family: var(--serif); font-style: italic; color: var(--accent); }
+.intro-kicker i { display: none; }
+.intro-stats { display: block; border: 0; font-size: 19px; line-height: 1.5; color: var(--text); margin-bottom: 12px; max-width: 520px; }
+.intro-stats b { display: inline; font-family: inherit; font-size: inherit; font-weight: 700; letter-spacing: 0; }
+.ev-pk { font-size: 13px; color: rgba(255,255,255,.85); }
+.ev-meta { text-transform: none; letter-spacing: 0; font-size: 13px; opacity: .85; }
+.ticker-label { text-transform: none; letter-spacing: 0; font-size: 12.5px; }
+
+/* карточка события в виде билета */
+.tkt { display: grid; grid-template-columns: 86px 1fr; margin: 0 0 12px; border-radius: 12px; overflow: hidden; background: var(--surface-solid); border: 1px solid var(--line); animation: rise .55s var(--ease) both; transition: transform .3s var(--ease), box-shadow .3s; position: relative; }
+.tkt:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(0,0,0,.5); }
+.tkt-stub { background: var(--c); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 14px 6px; cursor: pointer; position: relative; }
+.tkt-stub b { font-size: 13px; font-weight: 700; }
+.tkt-stub small { font-size: 11px; opacity: .85; text-align: center; line-height: 1.2; }
+/* перфорация: вырезы сверху/снизу и пунктир */
+.tkt-stub::after { content: ""; position: absolute; right: -1px; top: 10px; bottom: 10px; border-right: 2px dashed var(--surface-solid); opacity: .9; }
+.tkt::before, .tkt::after { content: ""; position: absolute; left: 77px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); z-index: 2; }
+.tkt::before { top: -10px; } .tkt::after { bottom: -10px; }
+.tkt-main { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tkt .times { margin-top: 8px; }
+.tkt .time:hover { background: var(--c); border-color: var(--c); }
+.venue-body { padding-top: 14px; }
+.loader-emblem { animation: breathe 1.6s ease-in-out infinite; } @keyframes breathe { 50% { transform: scale(.9); opacity: .7; } } .loader-title { font-size: 34px; }
+
+/* ===================== Палитра: ночная Казань / тёплый песок ===================== */
+:root {
+  --bg: #ebe2d0;
+  --surface: #f6efe2;
+  --surface-solid: #f8f2e6;
+  --raise: rgba(70, 45, 15, 0.05);
+  --line: rgba(70, 45, 15, 0.11);
+  --line-strong: rgba(70, 45, 15, 0.24);
+  --text: #2a2118;
+  --muted: #86765f;
+  --accent: #c7761a;
+  --accent-hover: #a96112;
+  --accent-soft: rgba(199, 118, 26, 0.12);
+  --on-accent: #fff8ec;
+  --gold: #2a2118;
+  --gold-soft: rgba(70, 45, 15, 0.06);
+  --shadow: 0 1px 2px rgba(60, 35, 10, .06), 0 12px 30px -16px rgba(60, 35, 10, .28);
+}
+:root[data-theme="dark"] {
+  --bg: #0f1626;
+  --surface: #172036;
+  --surface-solid: #18223a;
+  --raise: rgba(200, 215, 255, 0.05);
+  --line: rgba(200, 215, 255, 0.09);
+  --line-strong: rgba(200, 215, 255, 0.2);
+  --text: #f3ecdf;
+  --muted: #95a0b8;
+  --accent: #f2a541;
+  --accent-hover: #f7b862;
+  --accent-soft: rgba(242, 165, 65, 0.13);
+  --on-accent: #1a1206;
+  --gold: #f3ecdf;
+  --gold-soft: rgba(242, 165, 65, 0.08);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 16px 40px -18px rgba(0, 0, 0, .7);
+}
+/* текст на акцентном цвете */
+.btn.gold, .day.active, .day.active b, .time:hover, .passport-btn b { color: var(--on-accent) !important; }
+.time:hover small { color: var(--on-accent) !important; opacity: .75; }
+.btn.gold:hover { background: var(--accent-hover); }
+
+/* тонкая текстура «бумаги» на панелях, чтобы не было плоского пластика */
+.panel, .venue, .topbar, .modal-card {
+  background-image: radial-gradient(color-mix(in srgb, var(--text) 4%, transparent) 1px, transparent 1px);
+  background-size: 4px 4px;
+}
+
+/* логотип без тире */
+.brand-text { display: flex; flex-direction: column; line-height: 1.05; }
+.brand-title { font-size: 23px; }
+.brand-city { font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--accent); letter-spacing: 0; text-transform: none; font-weight: 500; }
+.brand-rule { display: none; }
+
+/* приветствие в панели */
+.greet { font-family: var(--serif); font-size: 26px; font-weight: 600; line-height: 1.1; padding: 4px 2px 2px; }
+.greet small { display: block; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+
+/* фильтры: активный — в цвете категории */
+.chip.active[data-cat="cinema"] { background: #e0613f; border-color: #e0613f; color: #fff; }
+.chip.active[data-cat="theatre"] { background: #b4508a; border-color: #b4508a; color: #fff; }
+.chip.active[data-cat="museum"] { background: #2f9e83; border-color: #2f9e83; color: #fff; }
+.chip.active[data-cat="concert"] { background: #d39a1f; border-color: #d39a1f; color: #fff; }
+.chip.active .dot { background: #fff !important; }
+
+/* заставка в тон */
+.intro { background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 97%, transparent) 0%, color-mix(in srgb, var(--bg) 82%, transparent) 46%, color-mix(in srgb, var(--bg) 8%, transparent) 100%); }
+.intro-title em { color: var(--accent); }
+.venue-hero { border-bottom-color: var(--accent); }
+.vignette { display: block; background: radial-gradient(130% 100% at 60% 45%, transparent 60%, color-mix(in srgb, var(--bg) 55%, transparent) 100%); }

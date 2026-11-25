@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
+  <meta name="theme-color" content="#0f1626" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Пушкинская карта · Казань</title>
   <meta name="description" content="3D-карта Казани: кино, театры, музеи и концерты, которые можно оплатить Пушкинской картой." />
@@ -17,9 +18,8 @@
 
   <header class="topbar">
     <a class="brand" href="#" id="brand">
-      <span class="brand-title">Пушкинская карта</span>
-      <span class="brand-rule"></span>
-      <span class="brand-city">Казань</span>
+      <span class="brand-emblem"><svg viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="var(--accent)"/><path d="M16 7c-2.4 2.3-3.6 4.6-3.6 7.1 0 2 1.1 3.5 3.6 4.6 2.5-1.1 3.6-2.6 3.6-4.6C19.6 11.6 18.4 9.3 16 7Z" fill="#fff"/><path d="M9.5 10.5c.2 3.9 2.2 7 6.5 8.2-1.6-2.6-2.7-5.4-6.5-8.2ZM22.5 10.5c-.2 3.9-2.2 7-6.5 8.2 1.6-2.6 2.7-5.4 6.5-8.2Z" fill="#fff" opacity=".75"/><path d="M16 18.7V26M16 23c-1.6-1.6-3.3-2.2-5-2 1 1.8 2.6 2.6 5 2ZM16 23c1.6-1.6 3.3-2.2 5-2-1 1.8-2.6 2.6-5 2Z" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg></span>
+      <span class="brand-text"><span class="brand-title">Пушкинская карта</span><span class="brand-city">в Казани</span></span>
     </a>
     <nav class="top-actions">
       <button class="nav-btn" id="btn-passport" aria-label="Культурный паспорт">
@@ -87,12 +87,29 @@
     </div>
   </div>
 
+  <!-- Бегущая лента ближайших сеансов -->
+  <div class="ticker" id="ticker"><span class="ticker-label"><i></i>Ближайшие сеансы</span><div class="ticker-track"><div class="ticker-row" id="ticker-row"></div></div></div>
+
+  <!-- Заставка поверх карты -->
+  <section class="intro" id="intro" hidden>
+    <div class="intro-inner">
+      <div class="intro-kicker">Сәлам, Казан!</div>
+      <h1 class="intro-title">Куда сходим<br><em>сегодня?</em></h1>
+      <div class="intro-stats" id="intro-stats"></div>
+      <p class="intro-lead">Всё, на что можно потратить Пушкинскую карту в Казани: кино, театры, музеи, концерты. Выбирайте на карте и покупайте билет.</p>
+      <div class="intro-actions">
+        <button class="btn gold xl" id="intro-go">Открыть карту</button>
+        <button class="btn intro-ghost xl" id="intro-near">Что рядом со мной</button>
+      </div>
+    </div>
+    <div class="intro-cats" id="intro-cats"></div>
+  </section>
+
   <div class="toast" id="toast"></div>
 
   <div class="loader" id="loader">
+    <div class="loader-emblem"><svg viewBox="0 0 32 32" width="64" height="64" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="var(--accent)"/><path d="M16 7c-2.4 2.3-3.6 4.6-3.6 7.1 0 2 1.1 3.5 3.6 4.6 2.5-1.1 3.6-2.6 3.6-4.6C19.6 11.6 18.4 9.3 16 7Z" fill="#fff"/><path d="M9.5 10.5c.2 3.9 2.2 7 6.5 8.2-1.6-2.6-2.7-5.4-6.5-8.2ZM22.5 10.5c-.2 3.9-2.2 7-6.5 8.2 1.6-2.6 2.7-5.4 6.5-8.2Z" fill="#fff" opacity=".75"/><path d="M16 18.7V26M16 23c-1.6-1.6-3.3-2.2-5-2 1 1.8 2.6 2.6 5 2ZM16 23c1.6-1.6 3.3-2.2 5-2-1 1.8-2.6 2.6-5 2Z" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg></div>
     <div class="loader-title">Пушкинская карта</div>
-    <div class="loader-line"><i></i></div>
-    <div class="loader-sub">Казань</div>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
