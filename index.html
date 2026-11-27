@@ -90,6 +90,12 @@
   <!-- Бегущая лента ближайших сеансов -->
   <div class="ticker" id="ticker"><span class="ticker-label"><i></i>Ближайшие сеансы</span><div class="ticker-track"><div class="ticker-row" id="ticker-row"></div></div></div>
 
+  <!-- Промо-ролик при открытии сайта -->
+  <div class="promo-overlay" id="promo" hidden>
+    <iframe id="promo-frame" title="Пушкинская карта в Казани" tabindex="-1"></iframe>
+    <button class="promo-skip" id="promo-skip">Пропустить</button>
+  </div>
+
   <!-- Заставка поверх карты -->
   <section class="intro" id="intro" hidden>
     <div class="intro-inner">
@@ -100,9 +106,31 @@
       <div class="intro-actions">
         <button class="btn gold xl" id="intro-go">Открыть карту</button>
         <button class="btn intro-ghost xl" id="intro-near">Что рядом со мной</button>
+        <button class="btn intro-ghost xl lucky-btn" data-lucky><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/></svg> Мне повезёт</button>
       </div>
     </div>
-    <div class="intro-cats" id="intro-cats"></div>
+    <div class="intro-right">
+      <div class="card-stage" id="card-stage">
+        <div class="card3d" id="card3d">
+          <div class="cface front">
+            <div class="holo"></div><div class="glare"></div>
+            <div class="c-top"><svg viewBox="0 0 32 32" width="44" height="44" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="var(--accent)"/><path d="M16 7c-2.4 2.3-3.6 4.6-3.6 7.1 0 2 1.1 3.5 3.6 4.6 2.5-1.1 3.6-2.6 3.6-4.6C19.6 11.6 18.4 9.3 16 7Z" fill="#fff"/><path d="M9.5 10.5c.2 3.9 2.2 7 6.5 8.2-1.6-2.6-2.7-5.4-6.5-8.2ZM22.5 10.5c-.2 3.9-2.2 7-6.5 8.2 1.6-2.6 2.7-5.4 6.5-8.2Z" fill="#fff" opacity=".75"/><path d="M16 18.7V26M16 23c-1.6-1.6-3.3-2.2-5-2 1 1.8 2.6 2.6 5 2ZM16 23c1.6-1.6 3.3-2.2 5-2-1 1.8-2.6 2.6-5 2Z" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg><span>Пушкинская<br>карта</span></div>
+            <div class="c-chip"></div>
+            <div class="c-num">Культура · 14–22</div>
+            <div class="c-bottom"><span>Казань</span><span class="c-name">Ваше имя</span></div>
+          </div>
+          <div class="cface back">
+            <div class="holo"></div><div class="glare"></div>
+            <div class="c-stripe"></div>
+            <div class="c-sign"><span>Кино, театры, музеи, концерты</span></div>
+            <p>Оплачивайте билеты этой картой и собирайте штампы в культурный паспорт. Пять разных мест, и вы в розыгрыше.</p>
+          </div>
+        </div>
+        <div class="card-shadow"></div>
+        <div class="card-hint">Потяните карту или нажмите, чтобы перевернуть</div>
+      </div>
+      <div class="intro-cats" id="intro-cats"></div>
+    </div>
   </section>
 
   <div class="toast" id="toast"></div>

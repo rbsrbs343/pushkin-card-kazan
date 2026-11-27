@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Пушкинская карта в Казани · промо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,600;1,500;1,600&family=Inter+Tight:wght@500;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #0f1626; --navy2: #18223a; --cream: #f3ecdf; --amber: #f2a541;
+    --cinema: #e0613f; --theatre: #b4508a; --museum: #2f9e83; --concert: #d39a1f;
+    --serif: "Cormorant", serif; --sans: "Inter Tight", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: #05070d; overflow: hidden; }
+  body { display: grid; place-items: center; font-family: var(--sans); color: var(--cream); -webkit-font-smoothing: antialiased; }
+
+  /* сцена 1920×1080, масштабируется под окно */
+  #stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden; background: var(--navy); transform-origin: center; }
+  .scene { position: absolute; inset: 0; visibility: hidden; }
+  .grain { position: absolute; inset: 0; pointer-events: none; z-index: 50; opacity: .07; background-image: radial-gradient(#fff 1px, transparent 1px); background-size: 3px 3px; mix-blend-mode: overlay; }
+  .bg-glow { position: absolute; width: 1400px; height: 1400px; border-radius: 50%; filter: blur(120px); opacity: .55; }
+
+  /* — общие — */
+  .kinetic { font-weight: 900; letter-spacing: -0.045em; line-height: .88; text-transform: none; }
+  .line { display: block; overflow: hidden; padding: .02em .04em .16em; margin-bottom: -.12em; }
+  .line > span { display: inline-block; }
+  em.serif { font-family: var(--serif); font-style: italic; font-weight: 600; letter-spacing: -0.02em; }
+
+  /* ===== Сцена 1: вопрос + карта ===== */
+  #s1 .q { position: absolute; left: 130px; top: 250px; font-size: 132px; }
+  #s1 .q em { color: var(--amber); }
+  #s1 .sub { position: absolute; left: 136px; top: 760px; font-size: 40px; font-weight: 500; opacity: .8; }
+  .card { position: absolute; right: 110px; top: 300px; width: 700px; height: 442px; border-radius: 38px; transform-style: preserve-3d; overflow: hidden;
+    background: radial-gradient(120% 90% at 0% 0%, #f2a541 0%, transparent 45%), radial-gradient(90% 120% at 100% 100%, #b4508a 0%, transparent 55%), linear-gradient(135deg, #e0613f 0%, #7a2e5d 55%, #1b2a4e 100%);
+    box-shadow: 0 80px 120px -40px rgba(0,0,0,.7), inset 0 2px 0 rgba(255,255,255,.3); padding: 48px 52px; }
+  .card::before { content: ""; position: absolute; inset: 0; opacity: .16; background: repeating-radial-gradient(circle at 80% 20%, transparent 0 16px, rgba(255,255,255,.7) 16px 18px); }
+  .card .holo { position: absolute; inset: 0; mix-blend-mode: color-dodge; opacity: .6; background: linear-gradient(115deg, transparent 20%, rgba(255,90,170,.6) 32%, rgba(255,230,120,.6) 40%, rgba(90,240,200,.6) 48%, rgba(110,150,255,.6) 56%, transparent 68%); background-size: 300% 300%; }
+  .card .top { position: relative; display: flex; gap: 22px; align-items: center; font-family: var(--serif); font-size: 46px; font-weight: 600; line-height: .95; }
+  .card .chip { position: relative; margin-top: 46px; width: 96px; height: 72px; border-radius: 14px; background: linear-gradient(135deg, #f7dfa0, #c99a3e 60%, #f1d48a); }
+  .card .num { position: relative; margin-top: 40px; font-size: 36px; letter-spacing: .14em; font-weight: 500; }
+  .card .bot { position: absolute; left: 52px; right: 52px; bottom: 40px; display: flex; justify-content: space-between; font-size: 22px; letter-spacing: .14em; text-transform: uppercase; opacity: .9; }
+
+  /* ===== Сцена 2: категории ===== */
+  #s2 .h { position: absolute; left: 140px; top: 120px; font-size: 120px; }
+  #s2 .h em { color: var(--amber); }
+  .tiles { position: absolute; left: 140px; right: 140px; top: 420px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
+  .tile { height: 500px; border-radius: 36px; background: var(--c); padding: 40px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; color: #fff; }
+  .tile::after { content: ""; position: absolute; inset: 0; background: radial-gradient(80% 60% at 20% 0%, rgba(255,255,255,.28), transparent 60%); }
+  .tile svg { width: 120px; height: 120px; position: relative; z-index: 1; }
+  .tile b { font-size: 64px; font-weight: 800; letter-spacing: -0.03em; position: relative; z-index: 1; }
+  .tile span { display: block; font-size: 26px; font-weight: 500; opacity: .85; margin-top: 6px; letter-spacing: 0; }
+
+  /* ===== Сцена 3: карта города ===== */
+  #s3 .h { position: absolute; left: 140px; top: 170px; font-size: 112px; z-index: 3; }
+  #s3 .stats { position: absolute; left: 146px; top: 560px; z-index: 3; display: grid; gap: 30px; }
+  #s3 .stat b { display: block; font-size: 150px; font-weight: 900; letter-spacing: -0.05em; line-height: .9; color: var(--amber); font-variant-numeric: tabular-nums; }
+  #s3 .stat span { font-size: 34px; font-weight: 500; opacity: .85; }
+  .mapbox { position: absolute; right: -60px; top: -40px; width: 1260px; height: 1160px; }
+  .mapbox svg { width: 100%; height: 100%; -webkit-mask: radial-gradient(60% 60% at 55% 50%, #000 55%, transparent 100%); mask: radial-gradient(60% 60% at 55% 50%, #000 55%, transparent 100%); }
+  .pin { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; background: var(--c); display: grid; place-items: center; box-shadow: 0 0 0 10px color-mix(in srgb, var(--c) 30%, transparent), 0 20px 30px -10px rgba(0,0,0,.6); }
+  .pin svg { width: 38px; height: 38px; color: #fff; }
+  .me { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: var(--cream); box-shadow: 0 0 0 10px rgba(243,236,223,.25); }
+
+  /* ===== Сцена 4: билет и штамп ===== */
+  #s4 .h { position: absolute; left: 140px; top: 140px; font-size: 112px; }
+  #s4 .h em { color: var(--amber); }
+  .ticket { position: absolute; left: 140px; top: 520px; width: 1060px; height: 330px; display: grid; grid-template-columns: 250px 1fr; border-radius: 30px; overflow: visible; }
+  .t-stub { background: var(--theatre); border-radius: 30px 0 0 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #fff; position: relative; transform-origin: 100% 100%; }
+  .t-stub::after { content: ""; position: absolute; right: -2px; top: 26px; bottom: 26px; border-right: 5px dashed var(--navy); }
+  .t-stub svg { width: 90px; height: 90px; }
+  .t-stub b { font-size: 40px; font-weight: 800; }
+  .t-body { background: var(--cream); color: #1b1410; border-radius: 0 30px 30px 0; padding: 46px 56px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .t-body .tt { font-family: var(--serif); font-size: 84px; font-weight: 600; line-height: .9; }
+  .t-body .ts { font-size: 32px; font-weight: 500; opacity: .7; }
+  .t-body .tp { font-size: 44px; font-weight: 800; color: var(--theatre); }
+  .stamp { position: absolute; right: 230px; top: 420px; width: 460px; height: 460px; color: var(--amber); }
+  .stamp svg { width: 100%; height: 100%; }
+  .stamp text { font-family: var(--sans); font-weight: 800; letter-spacing: 6px; fill: currentColor; }
+  #s4 .note { position: absolute; right: 190px; top: 920px; font-size: 36px; font-weight: 700; color: var(--cream); text-align: center; width: 540px; }
+
+  /* ===== Сцена 5: финал ===== */
+  #s5 { display: grid; place-items: center; text-align: center; }
+  #s5 .logo { width: 220px; height: 220px; margin: 0 auto 40px; }
+  #s5 .t1 { font-family: var(--serif); font-size: 150px; font-weight: 600; line-height: .9; letter-spacing: -0.02em; }
+  #s5 .t2 { font-family: var(--serif); font-style: italic; font-size: 80px; color: var(--amber); margin-top: 10px; }
+  #s5 .chips { display: flex; gap: 18px; justify-content: center; margin-top: 60px; }
+  #s5 .chips span { padding: 18px 34px; border-radius: 60px; background: var(--c); font-size: 32px; font-weight: 700; color: #fff; }
+  #s5 .tag { margin-top: 50px; font-size: 32px; font-weight: 500; opacity: .75; }
+
+  /* панель управления (не попадает в кадр при записи, если скрыть) */
+  .ui { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; z-index: 100; font: 500 13px var(--sans); color: #cfd6e6; background: rgba(15,22,38,.85); padding: 8px 10px 8px 14px; border-radius: 40px; transition: opacity .3s; }
+  .ui button { font: inherit; color: inherit; background: rgba(255,255,255,.1); border: 0; border-radius: 30px; padding: 7px 14px; cursor: pointer; }
+  .ui button:hover { background: var(--amber); color: #1a1206; }
+  .bar { width: 160px; height: 3px; background: rgba(255,255,255,.15); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--amber); }
+  body.rec .ui { opacity: 0; pointer-events: none; }
+  body.embed { background: var(--navy); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg-glow" id="glow1" style="background:#b4508a;left:-500px;top:-600px"></div>
+  <div class="bg-glow" id="glow2" style="background:#e0613f;right:-600px;bottom:-700px"></div>
+
+  <!-- 1 -->
+  <section class="scene" id="s1">
+    <h1 class="q kinetic"><span class="line"><span>У тебя есть</span></span><span class="line"><span><em class="serif">Пушкинская</em></span></span><span class="line"><span>карта?</span></span></h1>
+    <p class="sub">До 22 лет она есть почти у всех.</p>
+    <div class="card" id="card">
+      <div class="holo" id="holo"></div>
+      <div class="top"><svg viewBox="0 0 32 32" width="84" height="84"><circle cx="16" cy="16" r="16" fill="rgba(255,255,255,.2)"/><path d="M16 7c-2.4 2.3-3.6 4.6-3.6 7.1 0 2 1.1 3.5 3.6 4.6 2.5-1.1 3.6-2.6 3.6-4.6C19.6 11.6 18.4 9.3 16 7Z" fill="#fff"/><path d="M9.5 10.5c.2 3.9 2.2 7 6.5 8.2-1.6-2.6-2.7-5.4-6.5-8.2ZM22.5 10.5c-.2 3.9-2.2 7-6.5 8.2 1.6-2.6 2.7-5.4 6.5-8.2Z" fill="#fff" opacity=".75"/><path d="M16 18.7V26M16 23c-1.6-1.6-3.3-2.2-5-2 1 1.8 2.6 2.6 5 2ZM16 23c1.6-1.6 3.3-2.2 5-2-1 1.8-2.6 2.6-5 2Z" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg><span>Пушкинская<br>карта</span></div>
+      <div class="chip"></div>
+      <div class="num">Культура · 14–22</div>
+      <div class="bot"><span>Казань</span><span>Твоё имя</span></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="scene" id="s2">
+    <h2 class="h kinetic"><span class="line"><span>Её можно потратить</span></span><span class="line"><span><em class="serif">на&nbsp;это</em></span></span></h2>
+    <div class="tiles">
+      <div class="tile" style="--c:var(--cinema)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M7.5 5v14M16.5 5v14M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/></svg><b>Кино<span>российские фильмы</span></b></div>
+      <div class="tile" style="--c:var(--theatre)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h18"/><path d="M4 4.5v15c3 0 4.5-3 4.5-8.5V4.5M20 4.5v15c-3 0-4.5-3-4.5-8.5V4.5"/><path d="M8.5 4.5c.6 3 2 4.5 3.5 4.5s2.9-1.5 3.5-4.5"/></svg><b>Театр<span>спектакли, опера</span></b></div>
+      <div class="tile" style="--c:var(--museum)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 4l9 5.5"/><path d="M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3 20h18"/></svg><b>Музеи<span>выставки, экскурсии</span></b></div>
+      <div class="tile" style="--c:var(--concert)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6.5l10-2.5v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg><b>Концерты<span>оркестр, орган</span></b></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="scene" id="s3">
+    <div class="mapbox" id="mapbox">
+      <svg viewBox="0 0 1260 1160" fill="none"><rect width="1260" height="1160" fill="#141d33"/>
+        <path id="river" d="M-40 360 C 200 300, 330 420, 520 400 S 860 300, 1000 380 S 1180 520, 1300 470 L 1300 560 C 1160 610, 1040 470, 920 470 S 620 520, 470 500 S 180 420, -40 460 Z" fill="#1d2a47"/>
+        <path id="lake" d="M560 640 c40 -20 90 0 100 50 s-10 140 -60 170 s-90 -20 -80 -90 s0 -110 40 -130Z" fill="#1d2a47"/>
+        <g stroke="#3a4a6e" stroke-width="5" stroke-linecap="round" class="roads">
+          <path d="M100 900 L 1200 120"/><path d="M0 700 L 1260 760"/><path d="M380 0 L 520 1160"/><path d="M820 0 L 760 1160"/>
+          <path d="M140 200 L 1100 1000"/><path d="M0 560 C 400 600, 700 520, 1260 640"/>
+        </g>
+        <g stroke="#2a3756" stroke-width="2.5" class="roads">
+          <path d="M200 0 L 300 1160"/><path d="M640 0 L 640 1160"/><path d="M1000 0 L 980 1160"/><path d="M0 300 L 1260 260"/><path d="M0 980 L 1260 900"/><path d="M0 820 L 1260 1020"/>
+        </g>
+      </svg>
+    </div>
+    <h2 class="h kinetic"><span class="line"><span>Всё на одной</span></span><span class="line"><span><em class="serif" style="color:var(--amber)">карте Казани</em></span></span></h2>
+    <div class="stats">
+      <div class="stat"><b id="n1">0</b><span>площадок</span></div>
+      <div class="stat"><b id="n2">0</b><span>сеансов сегодня</span></div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="scene" id="s4">
+    <h2 class="h kinetic"><span class="line"><span>Покупай билет,</span></span><span class="line"><span><em class="serif">собирай штампы</em></span></span></h2>
+    <div class="ticket" id="ticket">
+      <div class="t-stub" id="stub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h18"/><path d="M4 4.5v15c3 0 4.5-3 4.5-8.5V4.5M20 4.5v15c-3 0-4.5-3-4.5-8.5V4.5"/><path d="M8.5 4.5c.6 3 2 4.5 3.5 4.5s2.9-1.5 3.5-4.5"/></svg><b>12+</b></div>
+      <div class="t-body"><div class="tt">Ревизор</div><div class="ts">Театр им. Качалова · пятница, 19:00</div><div class="tp">450 ₽ картой</div></div>
+    </div>
+    <div class="stamp" id="stamp">
+      <svg viewBox="0 0 100 100"><defs><path id="arc" d="M50 50 m-36 0 a36 36 0 1 1 72 0 a36 36 0 1 1 -72 0"/></defs>
+        <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="50" cy="50" r="27" fill="none" stroke="currentColor" stroke-width="1"/>
+        <text style="font-size:7px;letter-spacing:2.2px"><textPath href="#arc">ТЕАТР КАЧАЛОВА · КАЗАНЬ · ШТАМП ·</textPath></text>
+        <text x="50" y="57" text-anchor="middle" style="font-size:20px;letter-spacing:0">3/5</text></svg>
+    </div>
+    <div class="note" id="note">5 разных мест, и ты в розыгрыше</div>
+  </section>
+
+  <!-- 5 -->
+  <section class="scene" id="s5">
+    <div>
+      <svg class="logo" id="logo" viewBox="0 0 32 32"><circle cx="16" cy="16" r="16" fill="#f2a541"/><path d="M16 7c-2.4 2.3-3.6 4.6-3.6 7.1 0 2 1.1 3.5 3.6 4.6 2.5-1.1 3.6-2.6 3.6-4.6C19.6 11.6 18.4 9.3 16 7Z" fill="#fff"/><path d="M9.5 10.5c.2 3.9 2.2 7 6.5 8.2-1.6-2.6-2.7-5.4-6.5-8.2ZM22.5 10.5c-.2 3.9-2.2 7-6.5 8.2 1.6-2.6 2.7-5.4 6.5-8.2Z" fill="#fff" opacity=".75"/><path d="M16 18.7V26M16 23c-1.6-1.6-3.3-2.2-5-2 1 1.8 2.6 2.6 5 2ZM16 23c1.6-1.6 3.3-2.2 5-2-1 1.8-2.6 2.6-5 2Z" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+      <div class="t1" id="t1">Пушкинская карта</div>
+      <div class="t2" id="t2">в Казани</div>
+      <div class="chips" id="chips"><span style="--c:var(--cinema)">Кино</span><span style="--c:var(--theatre)">Театр</span><span style="--c:var(--museum)">Музеи</span><span style="--c:var(--concert)">Концерты</span></div>
+      <div class="tag" id="tag">Куда сходим сегодня?</div>
+    </div>
+  </section>
+
+  <div class="grain"></div>
+</div>
+
+<div class="ui" id="ui"><button id="b-play">Пауза</button><button id="b-replay">С начала</button><div class="bar"><i id="bar"></i></div><button id="b-rec" title="Скрыть панель для записи экрана">Для записи</button></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+  // масштаб сцены под окно
+  const stage = document.getElementById("stage");
+  // ?embed=1 — ролик встроен в сайт как заставка: один проигрыш, без панели, на весь экран
+  const EMBED = new URLSearchParams(location.search).has("embed");
+  if (EMBED) document.body.classList.add("rec", "embed");
+  const fit = () => { const k = (EMBED ? Math.max : Math.min)(innerWidth / 1920, innerHeight / 1080); stage.style.transform = `translate(-50%, -50%) scale(${k})`; };
+  addEventListener("resize", fit); fit();
+
+  // пины на карте (координаты внутри mapbox)
+  const ICON = {
+    cinema: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="5" width="17" height="14" rx="1.5"/><path d="M7.5 5v14M16.5 5v14"/></svg>',
+    theatre: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4.5h18M4 4.5v15c3 0 4.5-3 4.5-8.5V4.5M20 4.5v15c-3 0-4.5-3-4.5-8.5V4.5"/></svg>',
+    museum: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9.5 12 4l9 5.5M5.5 10v8M10 10v8M14 10v8M18.5 10v8M3 20h18"/></svg>',
+    concert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18V6.5l10-2.5v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
+  };
+  const PINS = [["cinema",300,180],["theatre",560,330],["museum",470,270],["cinema",760,250],["concert",640,560],["theatre",700,480],["cinema",980,640],["museum",380,600],["theatre",860,760],["cinema",520,860],["cinema",1080,300],["theatre",250,780]];
+  const mapbox = document.getElementById("mapbox");
+  PINS.forEach(([t, x, y]) => { const p = document.createElement("div"); p.className = "pin"; p.style.cssText = `left:${x}px;top:${y}px;--c:var(--${t})`; p.innerHTML = ICON[t]; mapbox.appendChild(p); });
+  const me = document.createElement("div"); me.className = "me"; me.style.cssText = "left:620px;top:690px"; mapbox.appendChild(me);
+
+  // дорожки рисуются линией
+  document.querySelectorAll(".roads path").forEach((p) => { const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; });
+
+  const E = "power4.out";
+  const tl = gsap.timeline({ repeat: EMBED ? 0 : -1, repeatDelay: 0.4, defaults: { ease: E },
+    onComplete: () => { if (EMBED) parent.postMessage("promo-done", location.origin); } });
+  window.tl = tl;
+  const show = (id) => tl.set(id, { visibility: "visible" });
+  const hide = (id, at) => tl.to(id, { autoAlpha: 0, duration: 0.35, ease: "power2.in" }, at);
+
+  // фон дышит всё время
+  tl.fromTo("#glow1", { x: 0, y: 0 }, { x: 600, y: 300, duration: 10.4, ease: "sine.inOut" }, 0);
+  tl.fromTo("#glow2", { x: 0, y: 0 }, { x: -500, y: -200, duration: 10.4, ease: "sine.inOut" }, 0);
+
+  // ---- 1: 0.0–2.2
+  tl.set(".scene", { visibility: "hidden", opacity: 1 }, 0);
+  show("#s1");
+  tl.from("#s1 .line > span", { yPercent: 110, duration: 0.7, stagger: 0.09 }, 0.05);
+  tl.from("#card", { x: 500, y: 120, rotationY: -70, rotationZ: 14, opacity: 0, duration: 1.1, ease: "expo.out" }, 0.2);
+  tl.fromTo("#holo", { backgroundPosition: "0% 0%" }, { backgroundPosition: "100% 100%", duration: 2, ease: "none" }, 0.2);
+  tl.to("#card", { rotationY: 12, rotationX: 6, duration: 1, ease: "sine.inOut" }, 1.2);
+  tl.from("#s1 .sub", { y: 30, opacity: 0, duration: 0.5 }, 0.6);
+  tl.to("#card", { x: -1400, rotationZ: -20, duration: 0.45, ease: "power3.in" }, 2.0);
+  hide("#s1", 2.05);
+
+  // ---- 2: 2.3–4.4
+  show("#s2"); tl.set("#s2", { opacity: 1 }, 2.3); tl.set("#s2", { visibility: "visible" }, 2.3);
+  tl.from("#s2 .line > span", { yPercent: 110, duration: 0.6, stagger: 0.08 }, 2.3);
+  tl.from("#s2 .tile", { y: 400, rotation: (i) => [-8, 5, -4, 7][i], opacity: 0, duration: 0.8, stagger: 0.09, ease: "back.out(1.4)" }, 2.45);
+  tl.from("#s2 .tile svg", { scale: 0, rotation: -40, duration: 0.5, stagger: 0.09, ease: "back.out(2)" }, 2.7);
+  tl.to("#s2 .tile", { y: -30, duration: 0.6, stagger: 0.05, ease: "sine.inOut" }, 3.5);
+  hide("#s2", 4.15);
+
+  // ---- 3: 4.5–6.6
+  tl.set("#s3", { visibility: "visible", opacity: 1 }, 4.5);
+  tl.from("#mapbox", { scale: 1.25, rotation: -4, opacity: 0, duration: 1.2, ease: "expo.out" }, 4.5);
+  tl.to(".roads path", { strokeDashoffset: 0, duration: 1, stagger: 0.04, ease: "power2.inOut" }, 4.55);
+  tl.from("#s3 .line > span", { yPercent: 110, duration: 0.6, stagger: 0.08 }, 4.6);
+  tl.from(".pin", { y: -160, scale: 0, opacity: 0, duration: 0.55, stagger: 0.06, ease: "back.out(2.2)" }, 4.9);
+  tl.from(".me", { scale: 0, duration: 0.5, ease: "back.out(3)" }, 5.6);
+  tl.from("#s3 .stat", { x: -60, opacity: 0, duration: 0.5, stagger: 0.12 }, 5.0);
+  tl.fromTo("#n1", { textContent: 0 }, { textContent: 19, snap: { textContent: 1 }, duration: 1.1, ease: "power2.out" }, 5.0);
+  tl.fromTo("#n2", { textContent: 0 }, { textContent: 38, snap: { textContent: 1 }, duration: 1.1, ease: "power2.out" }, 5.0);
+  tl.to("#mapbox", { scale: 1.08, duration: 1.4, ease: "sine.inOut" }, 5.3);
+  hide("#s3", 6.35);
+
+  // ---- 4: 6.7–8.6
+  tl.set("#s4", { visibility: "visible", opacity: 1 }, 6.7);
+  tl.from("#s4 .line > span", { yPercent: 110, duration: 0.6, stagger: 0.08 }, 6.7);
+  tl.from("#ticket", { x: -900, rotation: -6, duration: 0.7, ease: "expo.out" }, 6.8);
+  tl.to("#ticket", { x: -10, duration: 0.08, yoyo: true, repeat: 3, ease: "none" }, 7.45);
+  tl.to("#stub", { x: 140, y: 420, rotation: 38, opacity: 0, duration: 0.8, ease: "power2.in" }, 7.6);
+  tl.from("#stamp", { scale: 2.6, rotation: -40, opacity: 0, duration: 0.45, ease: "power4.in" }, 7.75);
+  tl.to("#s4", { x: 8, y: -6, duration: 0.05, yoyo: true, repeat: 3, ease: "none" }, 8.2);
+  tl.from("#note", { y: 30, opacity: 0, duration: 0.4 }, 8.2);
+  hide("#s4", 8.55);
+
+  // ---- 5: 8.8–10.4
+  tl.set("#s5", { visibility: "visible", opacity: 1 }, 8.8);
+  tl.from("#logo", { scale: 0, rotation: -120, duration: 0.7, ease: "back.out(1.8)" }, 8.8);
+  tl.from("#t1", { y: 80, opacity: 0, duration: 0.6 }, 8.95);
+  tl.from("#t2", { y: 50, opacity: 0, duration: 0.6 }, 9.05);
+  tl.from("#chips span", { y: 40, scale: .6, opacity: 0, duration: 0.45, stagger: 0.06, ease: "back.out(2)" }, 9.15);
+  tl.from("#tag", { opacity: 0, duration: 0.5 }, 9.45);
+  tl.to("#s5", { autoAlpha: 0, duration: 0.3 }, 10.1);
+
+  // панель
+  const bar = document.getElementById("bar");
+  gsap.ticker.add(() => { bar.style.width = (tl.progress() * 100) + "%"; });
+  document.getElementById("b-play").onclick = (e) => { tl.paused(!tl.paused()); e.target.textContent = tl.paused() ? "Играть" : "Пауза"; };
+  document.getElementById("b-replay").onclick = () => tl.restart();
+  document.getElementById("b-rec").onclick = () => { document.body.classList.add("rec"); tl.restart(); };
+  addEventListener("keydown", (e) => { if (e.key === "Escape") document.body.classList.remove("rec"); if (e.key === " ") document.getElementById("b-play").click(); });
+</script>
+</body>
+</html>

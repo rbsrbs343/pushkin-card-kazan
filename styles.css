@@ -711,3 +711,91 @@ body.intro-on .topbar { z-index: 50; }
 .intro-title em { color: var(--accent); }
 .venue-hero { border-bottom-color: var(--accent); }
 .vignette { display: block; background: radial-gradient(130% 100% at 60% 45%, transparent 60%, color-mix(in srgb, var(--bg) 55%, transparent) 100%); }
+
+/* ===================== 3D-карта на заставке ===================== */
+.intro-right { display: flex; flex-direction: column; gap: 22px; align-self: end; }
+.card-stage { position: relative; height: 330px; margin-bottom: 14px; perspective: 1100px; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.card-stage.grab { cursor: grabbing; }
+.card3d { position: relative; width: 400px; height: 252px; transform-style: preserve-3d; animation: floaty 6s ease-in-out infinite; will-change: transform; }
+.card3d.spring { transition: transform .7s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes floaty { 50% { translate: 0 -10px; } }
+.cface { position: absolute; inset: 0; border-radius: 20px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; color: #fff8ec; padding: 24px 26px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.25);
+  background:
+    radial-gradient(120% 90% at 0% 0%, #f2a541 0%, transparent 45%),
+    radial-gradient(90% 120% at 100% 100%, #b4508a 0%, transparent 55%),
+    linear-gradient(135deg, #e0613f 0%, #7a2e5d 55%, #1b2a4e 100%); }
+.cface.back { transform: rotateY(180deg); background: linear-gradient(135deg, #1b2a4e 0%, #3a2350 60%, #7a2e5d 100%); padding: 0; }
+/* голограмма: радужный перелив, который двигается за курсором */
+.holo { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: color-dodge; opacity: .5;
+  background: linear-gradient(115deg, transparent 20%, rgba(255,90,170,.55) 32%, rgba(255,230,120,.55) 40%, rgba(90,240,200,.55) 48%, rgba(110,150,255,.55) 56%, transparent 68%);
+  background-size: 250% 250%; background-position: var(--hx, 50%) var(--hy, 50%); transition: background-position .1s; }
+.glare { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(40% 50% at var(--hx, 50%) var(--hy, 50%), rgba(255,255,255,.35), transparent 70%); mix-blend-mode: overlay; }
+/* мелкий «гильош» узор, как на настоящих картах */
+.cface::before { content: ""; position: absolute; inset: 0; opacity: .14; background: repeating-radial-gradient(circle at 80% 20%, transparent 0 9px, rgba(255,255,255,.7) 9px 10px); pointer-events: none; }
+.c-top { position: relative; display: flex; align-items: center; gap: 12px; font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: .95; }
+.c-top svg circle { fill: rgba(255,255,255,.18); }
+.c-chip { position: relative; margin-top: 26px; width: 50px; height: 38px; border-radius: 8px; background: linear-gradient(135deg, #f7dfa0, #c99a3e 60%, #f1d48a); box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.c-chip::before { content: ""; position: absolute; inset: 8px 0; border-top: 1px solid rgba(0,0,0,.25); border-bottom: 1px solid rgba(0,0,0,.25); }
+.c-chip::after { content: ""; position: absolute; inset: 0 18px; border-left: 1px solid rgba(0,0,0,.25); border-right: 1px solid rgba(0,0,0,.25); }
+.c-num { position: relative; margin-top: 22px; font-size: 19px; letter-spacing: .14em; font-weight: 500; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.c-bottom { position: absolute; left: 26px; right: 26px; bottom: 20px; display: flex; justify-content: space-between; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; opacity: .9; }
+.c-stripe { height: 46px; background: #0b0f1a; margin-top: 26px; }
+.c-sign { margin: 18px 24px 0; height: 38px; background: repeating-linear-gradient(-45deg, #f8f2e6 0 6px, #ece3d0 6px 12px); border-radius: 4px; display: flex; align-items: center; padding: 0 12px; color: #2a2118; font-family: var(--serif); font-style: italic; font-size: 16px; }
+.cface.back p { margin: 16px 24px 0; font-size: 12.5px; line-height: 1.5; opacity: .85; }
+.card-shadow { position: absolute; bottom: 18px; left: 50%; width: 300px; height: 26px; margin-left: -150px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.45), transparent); filter: blur(4px); animation: shadowy 6s ease-in-out infinite; pointer-events: none; }
+@keyframes shadowy { 50% { transform: scale(.88); opacity: .7; } }
+.card-hint { position: absolute; bottom: -14px; left: 0; right: 0; text-align: center; font-size: 12.5px; color: var(--muted); }
+.intro-cats { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.intro-cats button { padding: 16px; }
+.intro-cats i { width: 40px; height: 40px; margin-bottom: 10px; border-radius: 12px; }
+.intro-cats b { font-size: 22px; }
+.intro-cats button::after { display: none; }
+.lucky-btn svg { margin-right: 2px; }
+
+/* ===================== Барабан «Мне повезёт» ===================== */
+.greet-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lucky-mini { flex: none; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); box-shadow: 0 8px 20px -10px var(--accent); transition: transform .3s var(--ease); }
+.lucky-mini:hover { transform: rotate(-12deg) scale(1.06); }
+.lucky { padding: 34px 32px 30px; display: flex; flex-direction: column; gap: 20px; }
+.lucky h2 { font-family: var(--serif); font-size: 36px; font-weight: 600; margin: 0; line-height: 1; }
+.lucky-sub { margin: 8px 0 0; color: var(--muted); }
+.drum-wrap { position: relative; height: 250px; perspective: 900px; display: grid; place-items: center; overflow: hidden; border-radius: 16px; background: linear-gradient(var(--bg), var(--surface-solid) 50%, var(--bg)); border: 1px solid var(--line); }
+.drum-wrap::before, .drum-wrap::after { content: ""; position: absolute; left: 0; right: 0; height: 80px; z-index: 3; pointer-events: none; }
+.drum-wrap::before { top: 0; background: linear-gradient(var(--surface-solid), transparent); }
+.drum-wrap::after { bottom: 0; background: linear-gradient(transparent, var(--surface-solid)); }
+.drum-window { position: absolute; left: 12px; right: 12px; top: 50%; height: 74px; margin-top: -37px; border: 2px solid var(--accent); border-radius: 14px; z-index: 2; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,.08); }
+.drum { position: relative; width: calc(100% - 40px); height: 74px; transform-style: preserve-3d; }
+.drum-item { position: absolute; inset: 0; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-radius: 12px; background: var(--surface-solid); border: 1px solid var(--line); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.drum-item i { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--c); color: #fff; flex: none; }
+.drum-item b { flex: 1; font-family: var(--serif); font-size: 21px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drum-item span { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+.drum-item.win { border-color: var(--accent); }
+.drum-item.win span { color: var(--accent); }
+.lucky-result:empty { display: none; }
+.lucky-result .tkt { animation: pop .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes pop { from { transform: scale(.85); opacity: 0; } }
+.lucky-acts { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.lucky-acts .btn { height: 40px; }
+
+/* ===================== Отрыв корешка при покупке ===================== */
+.ticket { position: relative; overflow: visible; }
+.ticket-side { transition: transform 1s cubic-bezier(.5, 0, .7, .4), opacity 1s; transform-origin: 0 0; }
+.ticket.tearing .ticket-side { transform: translate(60px, 160px) rotate(28deg); opacity: 0; }
+.ticket.tearing { animation: tug .35s ease-in-out; }
+@keyframes tug { 30% { transform: translateX(-6px) rotate(-.6deg); } 70% { transform: translateX(3px); } }
+
+@media (max-width: 860px) {
+  .card-stage { height: 240px; }
+  .card3d { width: 300px; height: 189px; }
+  .cface { padding: 18px; }
+  .c-top { font-size: 19px; } .c-chip { margin-top: 14px; width: 40px; height: 30px; } .c-num { margin-top: 14px; font-size: 15px; }
+  .intro-cats { grid-template-columns: 1fr 1fr; }
+  .lucky { padding: 70px 18px 24px; }
+}
+
+/* ===================== Промо-ролик при открытии ===================== */
+.promo-overlay { position: fixed; inset: 0; z-index: 90; background: #0f1626; transition: opacity .8s ease, transform .8s ease; }
+.promo-overlay iframe { width: 100%; height: 100%; border: 0; display: block; }
+.promo-overlay.leaving { opacity: 0; transform: scale(1.04); pointer-events: none; }
+.promo-skip { position: absolute; right: 24px; bottom: 24px; height: 42px; padding: 0 20px; border-radius: 30px; font-size: 14px; font-weight: 500; color: #f3ecdf; background: rgba(15, 22, 38, .55); border: 1px solid rgba(243, 236, 223, .3); backdrop-filter: blur(6px); transition: background .2s, color .2s; }
+.promo-skip:hover { background: #f2a541; color: #1a1206; border-color: #f2a541; }

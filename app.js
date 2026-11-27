@@ -720,7 +720,8 @@
     plus() { checkout.qty = Math.min(4, checkout.qty + 1); updQty(); },
     minus() { checkout.qty = Math.max(1, checkout.qty - 1); updQty(); },
     pay(btn) {
-      btn.disabled = true; btn.textContent = "Обработка…";
+      btn.disabled = true; btn.textContent = "Оплачено";
+      $("#modal-content .ticket")?.classList.add("tearing");
       setTimeout(() => {
         const fresh = !hasStamp(checkout.v.id);
         state.stamps.push({ venue: checkout.v.id, event: checkout.eventId, date: checkout.s.date.toISOString(), ts: Date.now() });
@@ -728,7 +729,7 @@
         renderAll(); renderPassportCount(true);
         if (state.venue) renderVenue();
         openPassport(fresh ? checkout.v.id : null, true);
-      }, 900);
+      }, 1300);
     },
     reset() {
       if (!confirm("Очистить паспорт? Все штампы будут удалены.")) return;
@@ -879,12 +880,14 @@
     if (id && byId[id] && state.venue?.id !== id) selectVenue(byId[id]);
   });
 
+  const DICE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/></svg>';
+
   // ---------- Приветствие по времени суток ----------
   (function greet() {
     const h = new Date().getHours();
     const hi = h < 5 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер";
     const ask = h < 12 ? "В музей с утра?" : h < 18 ? "Куда пойдём после пар?" : "Кино или театр сегодня?";
-    $("#panel-head").insertAdjacentHTML("afterbegin", `<div class="greet">${hi}!<small>${ask}</small></div>`);
+    $("#panel-head").insertAdjacentHTML("afterbegin", `<div class="greet-row"><div class="greet">${hi}!<small>${ask}</small></div><button class="lucky-mini" data-lucky title="Мне повезёт: случайный сеанс">${DICE}</button></div>`);
   })();
 
   // ---------- Заставка ----------
@@ -901,6 +904,26 @@
     }).join("");
     let seen = false; try { seen = sessionStorage.getItem("pk-intro") === "1"; } catch (_) {}
     if (seen || location.hash.includes("venue=")) return;
+    // вместо заставки — промо-ролик; по окончании или «Пропустить» открывается карта
+    const promo = $("#promo"), frame = $("#promo-frame");
+    promo.hidden = false;
+    document.body.classList.add("intro-on");
+    frame.src = "promo/?embed=1";
+    let done = false;
+    const finish = () => {
+      if (done) return; done = true;
+      try { sessionStorage.setItem("pk-intro", "1"); } catch (_) {}
+      promo.classList.add("leaving");
+      document.body.classList.remove("intro-on");
+      setTimeout(() => { promo.hidden = true; frame.src = "about:blank"; }, 800);
+    };
+    window.addEventListener("message", (e) => { if (e.origin === location.origin && e.data === "promo-done") finish(); });
+    $("#promo-skip").addEventListener("click", finish);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !promo.hidden) finish(); });
+    setTimeout(finish, 15000); // запасной выход, если ролик не загрузится
+    return;
+
+    // (прежняя заставка оставлена в коде, сейчас не показывается)
     $("#intro").hidden = false;
     document.body.classList.add("intro-on");
     const close = (after) => {
@@ -935,6 +958,114 @@
   $("#ticker").addEventListener("click", (e) => { const t = e.target.closest("[data-buy]"); if (t) openCheckout(...t.dataset.buy.split("|")); });
   renderTicker();
   setInterval(renderTicker, 60000);
+
+  // ---------- 3D-карта: наклон за курсором, вращение мышью, переворот ----------
+  (function card3d() {
+    const stage = $("#card-stage"), card = $("#card3d");
+    if (!stage) return;
+    let rx = 0, ry = 0, flip = 0, drag = null, raf = 0, tx = 0, ty = 0;
+    const apply = () => {
+      card.style.transform = `rotateX(${rx}deg) rotateY(${ry + flip}deg)`;
+      card.style.setProperty("--hx", `${50 + ry * 2}%`);
+      card.style.setProperty("--hy", `${50 - rx * 2}%`);
+    };
+    const ease = () => {
+      rx += (tx - rx) * 0.12; ry += (ty - ry) * 0.12; apply();
+      if (Math.abs(tx - rx) + Math.abs(ty - ry) > 0.05) raf = requestAnimationFrame(ease);
+    };
+    const go = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(ease); };
+    stage.addEventListener("pointermove", (e) => {
+      const r = stage.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5, py = (e.clientY - r.top) / r.height - 0.5;
+      if (drag) {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+        ty = drag.ry + dx * 0.6;
+        tx = Math.max(-40, Math.min(40, drag.rx - dy * 0.4));
+      } else { tx = -py * 22; ty = px * 28; }
+      go();
+    });
+    stage.addEventListener("pointerleave", () => { if (!drag) { tx = 0; ty = 0; go(); } });
+    stage.addEventListener("pointerdown", (e) => {
+      drag = { x: e.clientX, y: e.clientY, rx, ry, moved: false };
+      stage.setPointerCapture(e.pointerId); stage.classList.add("grab");
+    });
+    const up = () => {
+      if (!drag) return;
+      stage.classList.remove("grab");
+      if (!drag.moved) flip += 180;
+      else { // докрутили больше чем на пол-оборота: карта переворачивается
+        const turns = Math.round(ry / 180);
+        flip += turns * 180; ry -= turns * 180;
+      }
+      drag = null; card.classList.add("spring"); tx = 0; ty = 0; apply(); go();
+      setTimeout(() => card.classList.remove("spring"), 700);
+    };
+    stage.addEventListener("pointerup", up);
+    stage.addEventListener("pointercancel", up);
+    apply();
+  })();
+
+  // ---------- «Мне повезёт»: 3D-барабан со случайным сеансом ----------
+  function openLucky() {
+    const now = new Date();
+    let pool = VENUES.filter((v) => state.cat === "all" || v.type === state.cat)
+      .flatMap((v) => v.events.map((id) => ({ v, id, x: upcoming(v, id)[0] })).filter((o) => o.x));
+    pool = pool.sort(() => Math.random() - 0.5).slice(0, 12);
+    if (pool.length < 3) return toast("Сейчас не из чего выбирать, попробуйте другую категорию");
+    const n = pool.length, step = 360 / n, H = 74, R = Math.round(H / 2 / Math.tan(Math.PI / n)) + 6;
+    $("#modal-content").innerHTML = `
+      <div class="lucky">
+        <div><div class="label">Не можете выбрать?</div><h2>Крутите барабан</h2><p class="lucky-sub">Сайт сам подберёт сеанс на ближайшее время${state.cat !== "all" ? `, только «${CATS[state.cat].label}»` : ""}.</p></div>
+        <div class="drum-wrap"><div class="drum-window"></div>
+          <div class="drum" id="drum">${pool.map((o, i) => `
+            <div class="drum-item" style="transform: rotateX(${-i * step}deg) translateZ(${R}px); --c:${CATS[o.v.type].color}">
+              <i>${icon(o.v.type, 18)}</i><b>${esc(EVENTS[o.id].title)}</b><span>${fmtTime(o.x.date)}</span>
+            </div>`).join("")}</div>
+        </div>
+        <div class="lucky-result" id="lucky-result"></div>
+        <button class="btn gold block" id="lucky-spin">${DICE} Крутить</button>
+      </div>`;
+    openModal(true);
+    let rot = 0, spinning = false;
+    const drum = $("#drum");
+    const spin = () => {
+      if (spinning) return;
+      spinning = true; $("#lucky-result").innerHTML = ""; $("#lucky-spin").disabled = true;
+      drum.querySelectorAll(".drum-item").forEach((el) => el.classList.remove("win"));
+      const pick = Math.floor(Math.random() * n);
+      const cur = ((Math.round(rot / step) % n) + n) % n;
+      const target = rot + (n * 3 + ((pick - cur + n) % n)) * step;
+      const from = rot, t0 = performance.now(), dur = 2600;
+      const tick = (t) => {
+        const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 4);
+        rot = from + (target - from) * e;
+        drum.style.transform = `translateZ(${-R}px) rotateX(${rot}deg)`;
+        if (k < 1) return requestAnimationFrame(tick);
+        spinning = false; $("#lucky-spin").disabled = false; $("#lucky-spin").innerHTML = `${DICE} Ещё раз`;
+        const o = pool[pick], ev = EVENTS[o.id];
+        drum.querySelectorAll(".drum-item").forEach((el, i) => el.classList.toggle("win", i === pick));
+        const today = sameDay(o.x.date, now);
+        $("#lucky-result").innerHTML = `
+          <div class="tkt" style="--c:${CATS[o.v.type].color}">
+            <div class="tkt-stub">${icon(o.v.type, 24)}<b>${ev.age}</b></div>
+            <div class="tkt-main"><div class="card-title">${esc(ev.title)}</div>
+              <div class="card-meta"><span>${esc(o.v.name)}</span><span>${today ? "сегодня" : fmtDay(o.x.date)} в ${fmtTime(o.x.date)}</span><span>${o.x.price} ₽</span></div>
+              <div class="lucky-acts"><button class="btn gold" data-buy="${o.v.id}|${o.id}|${o.x.date.getTime()}">Беру</button><button class="btn line" data-goto="${o.v.id}">Показать на карте</button></div>
+            </div></div>`;
+      };
+      requestAnimationFrame(tick);
+    };
+    $("#lucky-spin").addEventListener("click", spin);
+    drum.style.transform = `translateZ(${-R}px) rotateX(0deg)`;
+    setTimeout(spin, 350);
+  }
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-lucky]")) return;
+    if (document.body.classList.contains("intro-on")) $("#intro-go").click();
+    openLucky();
+  });
+
 
   window.__map = map;
   renderAll();
